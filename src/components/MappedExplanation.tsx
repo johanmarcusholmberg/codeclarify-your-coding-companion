@@ -29,21 +29,34 @@ type ItemSectionKey = typeof SECTION_KEYS[number];
 function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItemId[]> {
   const map = new Map<number, ExplanationItemId[]>();
 
+  const addToMap = (line: number, id: ExplanationItemId) => {
+    const existing = map.get(line);
+    if (existing) existing.push(id);
+    else map.set(line, [id]);
+  };
+
+  const addRange = (lines: { start: number; end: number } | undefined, id: ExplanationItemId) => {
+    if (!lines) return;
+    for (let l = lines.start; l <= lines.end; l++) addToMap(l, id);
+  };
+
+  // Standard item sections
   for (const key of SECTION_KEYS) {
-    const items = data[key];
-    items.forEach((item, idx) => {
-      if (!item.lines) return;
-      const id = makeItemId(key, idx);
-      for (let l = item.lines.start; l <= item.lines.end; l++) {
-        const existing = map.get(l);
-        if (existing) {
-          existing.push(id);
-        } else {
-          map.set(l, [id]);
-        }
-      }
-    });
+    data[key].forEach((item, idx) => addRange(item.lines, makeItemId(key, idx)));
   }
+
+  // Relationships
+  data.relationships.forEach((rel, idx) => {
+    const id = makeItemId("relationships", idx);
+    addRange(rel.fromLines, id);
+    addRange(rel.toLines, id);
+  });
+
+  // Data flow
+  data.dataFlow.forEach((step, idx) => addRange(step.lines, makeItemId("dataFlow", idx)));
+
+  // Context suggestions
+  data.contextSuggestions.forEach((s, idx) => addRange(s.lines, makeItemId("contextSuggestions", idx)));
 
   return map;
 }
