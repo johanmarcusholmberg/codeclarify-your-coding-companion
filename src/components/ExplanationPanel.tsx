@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Lightbulb,
   Layers,
@@ -13,29 +13,70 @@ import {
   Check,
   ChevronDown,
   Info,
+  Link2,
+  ArrowRight,
+  AlertTriangle,
+  Workflow,
 } from "lucide-react";
-import type { CodeExplanation, ExplanationItemId } from "@/lib/explanationEngine";
+import type {
+  CodeExplanation,
+  ExplanationItemId,
+  Relationship,
+  DataFlowStep,
+  ContextSuggestion,
+  RelationshipType,
+} from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
 
 // ---------------------------------------------------------------------------
-// Section config
+// Section config — only for ExplanationItem[] sections
 // ---------------------------------------------------------------------------
 
-interface SectionConfig {
-  key: keyof Omit<CodeExplanation, "summary" | "beginnerMode" | "summaryLines">;
-  label: string;
-  icon: React.ReactNode;
-}
-
-const SECTIONS: SectionConfig[] = [
-  { key: "structure", label: "Structure", icon: <Layers className="w-4 h-4" /> },
-  { key: "functions", label: "Functions", icon: <Code2 className="w-4 h-4" /> },
-  { key: "variables", label: "Variables", icon: <Variable className="w-4 h-4" /> },
-  { key: "logic", label: "Logic", icon: <GitBranch className="w-4 h-4" /> },
-  { key: "syntax", label: "Syntax", icon: <Hash className="w-4 h-4" /> },
-  { key: "suggestions", label: "Suggestions", icon: <MessageSquare className="w-4 h-4" /> },
+const ITEM_SECTIONS = [
+  { key: "structure" as const, label: "Structure", icon: <Layers className="w-4 h-4" /> },
+  { key: "functions" as const, label: "Functions", icon: <Code2 className="w-4 h-4" /> },
+  { key: "variables" as const, label: "Variables", icon: <Variable className="w-4 h-4" /> },
+  { key: "logic" as const, label: "Logic", icon: <GitBranch className="w-4 h-4" /> },
+  { key: "syntax" as const, label: "Syntax", icon: <Hash className="w-4 h-4" /> },
+  { key: "suggestions" as const, label: "Suggestions", icon: <MessageSquare className="w-4 h-4" /> },
 ];
+
+// ---------------------------------------------------------------------------
+// Relationship badge
+// ---------------------------------------------------------------------------
+
+const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
+  "uses": "uses",
+  "called-by": "called by",
+  "depends-on": "depends on",
+  "returns": "returns",
+  "updates": "updates",
+  "filters": "filters",
+  "loops-through": "loops through",
+  "defines": "defines",
+  "passes-to": "passes to",
+};
+
+const RELATIONSHIP_COLORS: Record<RelationshipType, string> = {
+  "uses": "bg-sky-50 text-sky-700 border-sky-200",
+  "called-by": "bg-amber-50 text-amber-700 border-amber-200",
+  "depends-on": "bg-rose-50 text-rose-700 border-rose-200",
+  "returns": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "updates": "bg-orange-50 text-orange-700 border-orange-200",
+  "filters": "bg-violet-50 text-violet-700 border-violet-200",
+  "loops-through": "bg-teal-50 text-teal-700 border-teal-200",
+  "defines": "bg-slate-50 text-slate-600 border-slate-200",
+  "passes-to": "bg-blue-50 text-blue-700 border-blue-200",
+};
+
+const RelationshipBadge = ({ type }: { type: RelationshipType }) => (
+  <span
+    className={`inline-flex items-center text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full border ${RELATIONSHIP_COLORS[type]}`}
+  >
+    {RELATIONSHIP_LABELS[type]}
+  </span>
+);
 
 // ---------------------------------------------------------------------------
 // Collapsible section
@@ -47,6 +88,7 @@ interface CollapsibleSectionProps {
   defaultOpen?: boolean;
   children: React.ReactNode;
   animDelay: number;
+  badge?: React.ReactNode;
 }
 
 const CollapsibleSection = ({
@@ -55,6 +97,7 @@ const CollapsibleSection = ({
   defaultOpen = false,
   children,
   animDelay,
+  badge,
 }: CollapsibleSectionProps) => {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -70,8 +113,9 @@ const CollapsibleSection = ({
         <div className="w-7 h-7 rounded-lg bg-sage-light flex items-center justify-center shrink-0 text-sage">
           {icon}
         </div>
-        <span className="font-medium text-sm text-foreground flex-1">
+        <span className="font-medium text-sm text-foreground flex-1 flex items-center gap-2">
           {label}
+          {badge}
         </span>
         <ChevronDown
           className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
@@ -104,12 +148,9 @@ interface ItemCardProps {
 }
 
 const ItemCard = ({ label, detail, itemId, hasLines }: ItemCardProps) => {
-  const { activeItemId, highlightFromExplanation, clearHighlight } =
-    useHighlight();
+  const { activeItemId } = useHighlight();
   const isActive = activeItemId === itemId;
 
-  // We need the item's lines — passed via a data attribute or looked up.
-  // For simplicity we store lines in a closure from the parent.
   return (
     <div
       className={`rounded-lg border px-4 py-3 transition-all duration-200 ${
@@ -133,7 +174,6 @@ const ItemCard = ({ label, detail, itemId, hasLines }: ItemCardProps) => {
   );
 };
 
-// Wrapper that passes lines to highlight context on hover
 interface ItemCardWrapperProps {
   item: { label: string; detail: string; lines?: { start: number; end: number } };
   sectionKey: string;
@@ -155,6 +195,98 @@ const ItemCardWrapper = ({ item, sectionKey, itemIndex }: ItemCardWrapperProps) 
         itemId={itemId}
         hasLines={!!item.lines}
       />
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Relationship card
+// ---------------------------------------------------------------------------
+
+const RelationshipCard = ({ rel, index }: { rel: Relationship; index: number }) => {
+  const { highlightFromExplanation, clearHighlight } = useHighlight();
+  const itemId = makeItemId("relationships", index);
+  const hasLines = !!(rel.fromLines || rel.toLines);
+
+  // Highlight the full range from→to
+  const mergedLines = rel.fromLines && rel.toLines
+    ? { start: Math.min(rel.fromLines.start, rel.toLines.start), end: Math.max(rel.fromLines.end, rel.toLines.end) }
+    : rel.fromLines || rel.toLines;
+
+  return (
+    <div
+      className="rounded-lg border border-border/40 bg-muted/50 px-4 py-3 transition-all duration-200 hover:bg-code-highlight hover:border-sage-medium/60 cursor-pointer"
+      onMouseEnter={() => hasLines && highlightFromExplanation(itemId, mergedLines)}
+      onMouseLeave={clearHighlight}
+    >
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <span className="text-sm font-medium text-foreground">{rel.from}</span>
+        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium text-foreground">{rel.to}</span>
+        <RelationshipBadge type={rel.type} />
+      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed">{rel.detail}</p>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Data flow step
+// ---------------------------------------------------------------------------
+
+const DataFlowCard = ({ step, index }: { step: DataFlowStep; index: number }) => {
+  const { highlightFromExplanation, clearHighlight } = useHighlight();
+  const itemId = makeItemId("dataFlow", index);
+
+  return (
+    <div
+      className="flex gap-3 group"
+      onMouseEnter={() => step.lines && highlightFromExplanation(itemId, step.lines)}
+      onMouseLeave={clearHighlight}
+    >
+      {/* Step indicator */}
+      <div className="flex flex-col items-center pt-1">
+        <div className="w-6 h-6 rounded-full bg-sage-light border-2 border-sage-medium/40 flex items-center justify-center text-[10px] font-bold text-sage shrink-0">
+          {index + 1}
+        </div>
+        {/* Connector line */}
+        <div className="w-px flex-1 bg-sage-medium/30 mt-1" />
+      </div>
+      <div className={`rounded-lg border border-border/40 bg-muted/50 px-4 py-3 flex-1 mb-2 transition-all duration-200 ${step.lines ? "cursor-pointer group-hover:bg-code-highlight group-hover:border-sage-medium/60" : ""}`}>
+        <p className="text-sm font-medium text-foreground mb-0.5">{step.label}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{step.detail}</p>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Context suggestion card
+// ---------------------------------------------------------------------------
+
+const SEVERITY_STYLES = {
+  info: { border: "border-sky-200/60", bg: "bg-sky-50/50", icon: <Info className="w-3.5 h-3.5 text-sky-500" />, label: "Info" },
+  hint: { border: "border-amber-200/60", bg: "bg-amber-50/50", icon: <Lightbulb className="w-3.5 h-3.5 text-amber-500" />, label: "Hint" },
+  warning: { border: "border-rose-200/60", bg: "bg-rose-50/50", icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />, label: "Notice" },
+};
+
+const ContextSuggestionCard = ({ suggestion, index }: { suggestion: ContextSuggestion; index: number }) => {
+  const { highlightFromExplanation, clearHighlight } = useHighlight();
+  const itemId = makeItemId("contextSuggestions", index);
+  const style = SEVERITY_STYLES[suggestion.severity];
+
+  return (
+    <div
+      className={`rounded-lg border ${style.border} ${style.bg} px-4 py-3 transition-all duration-200 ${suggestion.lines ? "cursor-pointer hover:shadow-sm" : ""}`}
+      onMouseEnter={() => suggestion.lines && highlightFromExplanation(itemId, suggestion.lines)}
+      onMouseLeave={clearHighlight}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {style.icon}
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{style.label}</span>
+      </div>
+      <p className="text-sm font-medium text-foreground mb-0.5">{suggestion.label}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed">{suggestion.detail}</p>
     </div>
   );
 };
@@ -213,7 +345,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
     if (!data) return;
     const lines: string[] = [];
     lines.push("## Summary\n" + data.summary + "\n");
-    SECTIONS.forEach((s) => {
+    ITEM_SECTIONS.forEach((s) => {
       const items = data[s.key];
       if (items.length) {
         lines.push(`## ${s.label}`);
@@ -221,6 +353,19 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
         lines.push("");
       }
     });
+    if (data.relationships.length) {
+      lines.push("## Connections");
+      data.relationships.forEach((r) => lines.push(`• ${r.from} → ${r.to} (${RELATIONSHIP_LABELS[r.type]}): ${r.detail}`));
+      lines.push("");
+    }
+    if (data.dataFlow.length) {
+      lines.push("## Data Flow");
+      data.dataFlow.forEach((s, i) => lines.push(`${i + 1}. ${s.label}: ${s.detail}`));
+      lines.push("");
+    }
+    if (data.relationshipSummary) {
+      lines.push("## How It All Fits Together\n" + data.relationshipSummary + "\n");
+    }
     lines.push("## Beginner Mode\n" + data.beginnerMode);
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
@@ -244,6 +389,8 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
     );
   }
 
+  let sectionIndex = 0;
+
   return (
     <div className="surface-elevated rounded-xl border border-border overflow-hidden">
       {/* Header */}
@@ -257,15 +404,9 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
           className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors duration-200 active:scale-[0.97]"
         >
           {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-sage" />
-              Copied
-            </>
+            <><Check className="w-3.5 h-3.5 text-sage" /> Copied</>
           ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              Copy
-            </>
+            <><Copy className="w-3.5 h-3.5" /> Copy</>
           )}
         </button>
       </div>
@@ -277,51 +418,109 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
             <Lightbulb className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-medium text-sm text-foreground mb-1">
-              Summary
-            </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {data.summary}
-            </p>
+            <h3 className="font-medium text-sm text-foreground mb-1">Summary</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{data.summary}</p>
           </div>
         </div>
       </div>
 
-      {/* Collapsible sections */}
-      {SECTIONS.map((section, idx) => {
+      {/* Existing item sections */}
+      {ITEM_SECTIONS.map((section) => {
         const items = data[section.key];
         if (!items.length) return null;
+        sectionIndex++;
         return (
           <CollapsibleSection
             key={section.key}
             label={section.label}
             icon={section.icon}
-            defaultOpen={idx < 2}
-            animDelay={0.06 * (idx + 1)}
+            defaultOpen={sectionIndex <= 2}
+            animDelay={0.06 * sectionIndex}
           >
             {items.map((item, i) => (
-              <ItemCardWrapper
-                key={i}
-                item={item}
-                sectionKey={section.key}
-                itemIndex={i}
-              />
+              <ItemCardWrapper key={i} item={item} sectionKey={section.key} itemIndex={i} />
             ))}
           </CollapsibleSection>
         );
       })}
+
+      {/* NEW: Connections / Relationships */}
+      {data.relationships.length > 0 && (
+        <CollapsibleSection
+          label="Connections"
+          icon={<Link2 className="w-4 h-4" />}
+          defaultOpen={true}
+          animDelay={0.06 * (++sectionIndex)}
+          badge={
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {data.relationships.length}
+            </span>
+          }
+        >
+          {data.relationships.map((rel, i) => (
+            <RelationshipCard key={i} rel={rel} index={i} />
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* NEW: Data Flow */}
+      {data.dataFlow.length > 0 && (
+        <CollapsibleSection
+          label="Data Flow"
+          icon={<Workflow className="w-4 h-4" />}
+          defaultOpen={false}
+          animDelay={0.06 * (++sectionIndex)}
+        >
+          <div className="space-y-0">
+            {data.dataFlow.map((step, i) => (
+              <DataFlowCard key={i} step={step} index={i} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* NEW: How It All Fits Together */}
+      {data.relationshipSummary && (
+        <CollapsibleSection
+          label="How It All Fits Together"
+          icon={<Layers className="w-4 h-4" />}
+          defaultOpen={false}
+          animDelay={0.06 * (++sectionIndex)}
+        >
+          <div className="rounded-lg bg-accent/50 border border-accent-foreground/10 px-4 py-3">
+            <p className="text-sm text-foreground leading-relaxed">{data.relationshipSummary}</p>
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* NEW: Context Suggestions */}
+      {data.contextSuggestions.length > 0 && (
+        <CollapsibleSection
+          label="Context Insights"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          defaultOpen={false}
+          animDelay={0.06 * (++sectionIndex)}
+          badge={
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {data.contextSuggestions.length}
+            </span>
+          }
+        >
+          {data.contextSuggestions.map((s, i) => (
+            <ContextSuggestionCard key={i} suggestion={s} index={i} />
+          ))}
+        </CollapsibleSection>
+      )}
 
       {/* Beginner mode */}
       <CollapsibleSection
         label="Beginner Mode"
         icon={<GraduationCap className="w-4 h-4" />}
         defaultOpen={false}
-        animDelay={0.06 * (SECTIONS.length + 1)}
+        animDelay={0.06 * (++sectionIndex)}
       >
         <div className="rounded-lg bg-sage-light/60 border border-sage-medium/30 px-4 py-3">
-          <p className="text-sm text-foreground leading-relaxed">
-            {data.beginnerMode}
-          </p>
+          <p className="text-sm text-foreground leading-relaxed">{data.beginnerMode}</p>
         </div>
       </CollapsibleSection>
 
