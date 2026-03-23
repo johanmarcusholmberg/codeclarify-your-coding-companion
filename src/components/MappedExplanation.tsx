@@ -11,14 +11,16 @@ interface MappedExplanationProps {
   isLoading?: boolean;
 }
 
-const SECTION_KEYS: (keyof Omit<CodeExplanation, "summary" | "beginnerMode" | "summaryLines">)[] = [
+const SECTION_KEYS = [
   "structure",
   "functions",
   "variables",
   "logic",
   "syntax",
   "suggestions",
-];
+] as const;
+
+type ItemSectionKey = typeof SECTION_KEYS[number];
 
 /**
  * Build a reverse map: line number → list of explanation item IDs that reference it.
