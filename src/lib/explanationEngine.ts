@@ -13,6 +13,43 @@ export interface ExplanationItem {
   lines?: LineRange;
 }
 
+/** Relationship tag types for visual badges */
+export type RelationshipType =
+  | "uses"
+  | "called-by"
+  | "depends-on"
+  | "returns"
+  | "updates"
+  | "filters"
+  | "loops-through"
+  | "defines"
+  | "passes-to";
+
+/** A relationship between two parts of the code */
+export interface Relationship {
+  from: string;
+  to: string;
+  type: RelationshipType;
+  detail: string;
+  fromLines?: LineRange;
+  toLines?: LineRange;
+}
+
+/** A step in the data flow through the code */
+export interface DataFlowStep {
+  label: string;
+  detail: string;
+  lines?: LineRange;
+}
+
+/** Context-aware suggestion about code relationships */
+export interface ContextSuggestion {
+  label: string;
+  detail: string;
+  severity: "info" | "hint" | "warning";
+  lines?: LineRange;
+}
+
 export interface CodeExplanation {
   summary: string;
   /** Line range the summary covers (usually the full snippet) */
@@ -24,6 +61,16 @@ export interface CodeExplanation {
   syntax: ExplanationItem[];
   suggestions: ExplanationItem[];
   beginnerMode: string;
+
+  // ---- Contextual intelligence layer ----
+  /** How parts of the code relate to each other */
+  relationships: Relationship[];
+  /** How data moves through the code from input to output */
+  dataFlow: DataFlowStep[];
+  /** How the main sections work together */
+  relationshipSummary: string;
+  /** Context-aware suggestions about dependencies and clarity */
+  contextSuggestions: ContextSuggestion[];
 }
 
 /** Unique key for an explanation item — used for highlight coordination */
