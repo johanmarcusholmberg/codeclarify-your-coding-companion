@@ -87,20 +87,34 @@ export function makeItemId(
 export type DepthMode = "beginner" | "intermediate" | "advanced";
 
 /**
- * Generate a mock explanation for the given language and depth.
- * Replace this function body with a real API call later.
+ * Generate a structured explanation by calling the analyze-code edge function.
+ * Falls back to mock data if the API call fails.
  */
-export function generateExplanation(
-  _code: string,
+export async function generateExplanation(
+  code: string,
   language: string,
   depth: DepthMode = "intermediate"
 ): Promise<CodeExplanation> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const base = MOCK_EXPLANATIONS[language] ?? MOCK_EXPLANATIONS.javascript;
-      resolve(adaptToDepth(base, depth));
-    }, 1400);
-  });
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase.functions.invoke("analyze-code", {
+      body: { code, language, depth },
+    });
+
+    if (error) throw error;
+
+    // Validate that we got a usable response
+    if (data && typeof data === "object" && data.summary) {
+      return data as CodeExplanation;
+    }
+
+    throw new Error("Invalid response shape");
+  } catch (err) {
+    console.warn("AI analysis failed, falling back to mock data:", err);
+    // Graceful fallback to mock data
+    const base = MOCK_EXPLANATIONS[language] ?? MOCK_EXPLANATIONS.javascript;
+    return adaptToDepth(base, depth);
+  }
 }
 
 // ---------------------------------------------------------------------------
