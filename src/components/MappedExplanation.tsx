@@ -22,10 +22,6 @@ const SECTION_KEYS = [
 
 type ItemSectionKey = typeof SECTION_KEYS[number];
 
-/**
- * Build a reverse map: line number → list of explanation item IDs that reference it.
- * Used for code→explanation highlighting.
- */
 function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItemId[]> {
   const map = new Map<number, ExplanationItemId[]>();
 
@@ -40,22 +36,17 @@ function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItem
     for (let l = lines.start; l <= lines.end; l++) addToMap(l, id);
   };
 
-  // Standard item sections
   for (const key of SECTION_KEYS) {
     data[key].forEach((item, idx) => addRange(item.lines, makeItemId(key, idx)));
   }
 
-  // Relationships
   data.relationships.forEach((rel, idx) => {
     const id = makeItemId("relationships", idx);
     addRange(rel.fromLines, id);
     addRange(rel.toLines, id);
   });
 
-  // Data flow
   data.dataFlow.forEach((step, idx) => addRange(step.lines, makeItemId("dataFlow", idx)));
-
-  // Context suggestions
   data.contextSuggestions.forEach((s, idx) => addRange(s.lines, makeItemId("contextSuggestions", idx)));
 
   return map;
@@ -72,7 +63,7 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   return (
     <HighlightProvider lineToItems={lineToItems}>
       {hasResults ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start animate-fade-up">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start animate-fade-up">
           {/* Left: Code viewer (sticky on desktop) */}
           <div className="lg:sticky lg:top-20">
             <CodeViewer code={code} />
