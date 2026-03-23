@@ -3,15 +3,17 @@ import { Play, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import CodeInput from "@/components/CodeInput";
 import LanguageSelector from "@/components/LanguageSelector";
+import DepthSelector from "@/components/DepthSelector";
 import MappedExplanation from "@/components/MappedExplanation";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_CODE } from "@/lib/sampleCode";
-import { generateExplanation, type CodeExplanation } from "@/lib/explanationEngine";
+import { generateExplanation, type CodeExplanation, type DepthMode } from "@/lib/explanationEngine";
 import { toast } from "sonner";
 
 const Index = () => {
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
+  const [depth, setDepth] = useState<DepthMode>("intermediate");
   const [explanation, setExplanation] = useState<CodeExplanation | null>(null);
   const [submittedCode, setSubmittedCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +33,7 @@ const Index = () => {
     setIsLoading(true);
     setSubmittedCode(code);
     try {
-      const result = await generateExplanation(code, language);
+      const result = await generateExplanation(code, language, depth);
       setExplanation(result);
     } catch {
       toast.error("Something went wrong", {
@@ -39,6 +41,22 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Re-generate when depth changes and we already have results
+  const handleDepthChange = async (newDepth: DepthMode) => {
+    setDepth(newDepth);
+    if (explanation && submittedCode) {
+      setIsLoading(true);
+      try {
+        const result = await generateExplanation(submittedCode, language, newDepth);
+        setExplanation(result);
+      } catch {
+        // keep existing explanation on error
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -64,7 +82,10 @@ const Index = () => {
         {/* Input section */}
         <div className={`space-y-4 animate-fade-up-delay-1 ${showResults ? "max-w-4xl mx-auto" : ""}`}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <LanguageSelector value={language} onChange={setLanguage} />
+            <div className="flex items-center gap-3 flex-wrap">
+              <LanguageSelector value={language} onChange={setLanguage} />
+              <DepthSelector value={depth} onChange={handleDepthChange} />
+            </div>
             <Button variant="sage" size="sm" onClick={handleUseSample}>
               <Sparkles className="w-3.5 h-3.5" />
               Use sample code
@@ -92,7 +113,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Results — two-panel mapped layout */}
+        {/* Results */}
         <div className="mt-10">
           <MappedExplanation
             code={submittedCode}

@@ -83,19 +83,168 @@ export function makeItemId(
   return `${sectionKey}-${itemIndex}`;
 }
 
+/** Explanation depth modes */
+export type DepthMode = "beginner" | "intermediate" | "advanced";
+
 /**
- * Generate a mock explanation for the given language.
+ * Generate a mock explanation for the given language and depth.
  * Replace this function body with a real API call later.
  */
 export function generateExplanation(
   _code: string,
-  language: string
+  language: string,
+  depth: DepthMode = "intermediate"
 ): Promise<CodeExplanation> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve(MOCK_EXPLANATIONS[language] ?? MOCK_EXPLANATIONS.javascript);
+      const base = MOCK_EXPLANATIONS[language] ?? MOCK_EXPLANATIONS.javascript;
+      resolve(adaptToDepth(base, depth));
     }, 1400);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Depth adaptation — transforms explanation tone/detail per mode
+// ---------------------------------------------------------------------------
+
+function adaptToDepth(data: CodeExplanation, depth: DepthMode): CodeExplanation {
+  if (depth === "intermediate") return data; // base data is written at intermediate level
+
+  if (depth === "beginner") {
+    return {
+      ...data,
+      summary: simplifyText(data.summary) + " Don't worry if some of this feels new — each section below will walk you through it step by step.",
+      structure: data.structure.map(item => ({
+        ...item,
+        detail: simplifyText(item.detail) + " Think of this as one building block of the code.",
+      })),
+      functions: data.functions.map(item => ({
+        ...item,
+        detail: simplifyText(item.detail) + " A function is like a reusable recipe — you give it ingredients (inputs) and it produces a result (output).",
+      })),
+      variables: data.variables.map(item => ({
+        ...item,
+        detail: simplifyText(item.detail) + " A variable is like a labeled box that holds a value.",
+      })),
+      logic: data.logic.map(item => ({
+        ...item,
+        detail: simplifyText(item.detail) + " This part controls the order and conditions under which things happen.",
+      })),
+      syntax: data.syntax.map(item => ({
+        ...item,
+        detail: "🔤 " + simplifyText(item.detail) + " This is a language rule you'll see often — it becomes second nature with practice.",
+      })),
+      suggestions: data.suggestions.map(item => ({
+        ...item,
+        detail: "💡 " + simplifyText(item.detail),
+      })),
+      beginnerMode: data.beginnerMode,
+      relationships: data.relationships.map(rel => ({
+        ...rel,
+        detail: simplifyText(rel.detail) + " These two parts of the code work together.",
+      })),
+      dataFlow: data.dataFlow.map(step => ({
+        ...step,
+        detail: simplifyText(step.detail) + " This is one step in how information moves through the code.",
+      })),
+      relationshipSummary: simplifyText(data.relationshipSummary) + " In short: the different pieces of this code are designed to work together like a team, each with its own job.",
+      contextSuggestions: data.contextSuggestions
+        .filter(s => s.severity !== "info") // hide low-priority for beginners
+        .map(s => ({
+          ...s,
+          detail: simplifyText(s.detail),
+        })),
+    };
+  }
+
+  // Advanced mode
+  return {
+    ...data,
+    summary: data.summary.replace(/\.$/, "") + ". From an implementation perspective, this demonstrates " + getAdvancedPattern(data) + ".",
+    structure: data.structure.map(item => ({
+      ...item,
+      detail: technicalizeText(item.detail),
+    })),
+    functions: data.functions.map(item => ({
+      ...item,
+      detail: technicalizeText(item.detail) + " Consider the function's time complexity and side-effect profile.",
+    })),
+    variables: data.variables.map(item => ({
+      ...item,
+      detail: technicalizeText(item.detail) + " Note the scope, mutability, and lifetime of this binding.",
+    })),
+    logic: data.logic.map(item => ({
+      ...item,
+      detail: technicalizeText(item.detail) + " Consider edge cases and termination guarantees.",
+    })),
+    syntax: data.syntax.map(item => ({
+      ...item,
+      detail: technicalizeText(item.detail),
+    })),
+    suggestions: [
+      ...data.suggestions.map(item => ({
+        ...item,
+        detail: technicalizeText(item.detail),
+      })),
+      { label: "Consider error boundaries", detail: "Production code should handle unexpected inputs and edge cases explicitly rather than relying on implicit behavior." },
+      { label: "Type safety", detail: "Adding explicit type annotations or runtime checks would improve maintainability and catch bugs earlier in development." },
+    ],
+    beginnerMode: data.beginnerMode,
+    relationships: data.relationships.map(rel => ({
+      ...rel,
+      detail: technicalizeText(rel.detail) + " This coupling affects testability and refactoring options.",
+    })),
+    dataFlow: data.dataFlow.map(step => ({
+      ...step,
+      detail: technicalizeText(step.detail),
+    })),
+    relationshipSummary: technicalizeText(data.relationshipSummary) + " Understanding these dependencies is key for refactoring, testing, and extending the code safely.",
+    contextSuggestions: [
+      ...data.contextSuggestions.map(s => ({
+        ...s,
+        detail: technicalizeText(s.detail),
+      })),
+      { label: "Coupling analysis", detail: "Consider whether the dependencies between these components follow the principle of least knowledge (Law of Demeter). Tight coupling here could make unit testing more difficult.", severity: "info" as const },
+    ],
+  };
+}
+
+function simplifyText(text: string): string {
+  return text
+    .replace(/\bparameter\b/gi, "input")
+    .replace(/\biteration\b/gi, "loop cycle")
+    .replace(/\biterate\b/gi, "go through")
+    .replace(/\bimplicit(ly)?\b/gi, "automatic$1")
+    .replace(/\bexplicit(ly)?\b/gi, "clear$1")
+    .replace(/\binvoke[sd]?\b/gi, "call$&".replace("invoke", ""))
+    .replace(/\bmutable\b/gi, "changeable")
+    .replace(/\bimmutable\b/gi, "unchangeable")
+    .replace(/\baggregate\b/gi, "combine")
+    .replace(/\binstantiat/gi, "creat")
+    .replace(/\bboolean\b/gi, "true/false value")
+    .replace(/\bcallback\b/gi, "function passed as input");
+}
+
+function technicalizeText(text: string): string {
+  return text
+    .replace(/\bgoes through\b/gi, "iterates over")
+    .replace(/\bpulls?\b/gi, "extracts")
+    .replace(/\bfeeds?\b/gi, "passes")
+    .replace(/\bbuilds?\b/gi, "constructs")
+    .replace(/\bwrapped?\b/gi, "interpolated")
+    .replace(/\bpieces?\b/gi, "components")
+    .replace(/\bjob\b/gi, "responsibility");
+}
+
+function getAdvancedPattern(data: CodeExplanation): string {
+  const hasLoop = data.logic.some(l => /loop|iterat|forEach|for\b|while/i.test(l.label + l.detail));
+  const hasBranch = data.logic.some(l => /condition|ternary|if|branch|switch/i.test(l.label + l.detail));
+  const hasFunctions = data.functions.length > 0;
+
+  if (hasLoop && hasFunctions) return "functional iteration with higher-order function composition";
+  if (hasBranch) return "conditional branching with data-dependent control flow";
+  if (hasFunctions) return "procedural abstraction through function decomposition";
+  return "structured composition of declarative and imperative patterns";
 }
 
 // ---------------------------------------------------------------------------
