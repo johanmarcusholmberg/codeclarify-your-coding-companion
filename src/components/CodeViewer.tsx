@@ -68,7 +68,7 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
 
   return (
     <div className="rounded-xl border border-border bg-code-bg overflow-hidden surface-elevated font-mono text-sm leading-[1.625rem]">
-      {/* Header */}
+      {/* Header — not sticky, sits above scrollable area */}
       <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/50 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -83,8 +83,8 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
         </span>
       </div>
 
-      {/* Code lines */}
-      <div ref={scrollContainerRef} className="overflow-x-auto max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
+      {/* Code lines — header is outside scroll area so it never covers code */}
+      <div ref={scrollContainerRef} className="overflow-x-auto max-h-[50vh] sm:max-h-[65vh] overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => {
