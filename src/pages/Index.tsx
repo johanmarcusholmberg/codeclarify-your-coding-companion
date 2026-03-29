@@ -120,9 +120,10 @@ const Index = () => {
     }
     dismissOnboarding();
     setIsLoading(true);
-    setSubmittedCode(code);
+    const normalized = normalizeCode(code);
+    setSubmittedCode(normalized);
     try {
-      const result = await generateExplanation(code, language, depth);
+      const result = await generateExplanation(normalized, language, depth);
       setExplanation(result);
       // Save to history
       const updated = addToHistory({ code, language, depth, explanation: result });

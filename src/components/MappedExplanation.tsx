@@ -1,9 +1,9 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { Info, BookOpen, Play } from "lucide-react";
 import CodeViewer, { type CodeViewerHandle } from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import GuidedMode from "@/components/GuidedMode";
-import { HighlightProvider } from "@/contexts/HighlightContext";
+import { HighlightProvider, useHighlight } from "@/contexts/HighlightContext";
 import type { CodeExplanation, ExplanationItemId, LineRange } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 
@@ -91,6 +91,29 @@ const ViewModeToggle = ({ mode, onChange }: { mode: ViewMode; onChange: (m: View
 );
 
 // ---------------------------------------------------------------------------
+// Auto-scroll bridge — watches highlight changes and scrolls code viewer
+// ---------------------------------------------------------------------------
+
+const AutoScrollBridge = ({ codeViewerRef }: { codeViewerRef: React.RefObject<CodeViewerHandle> }) => {
+  const { activeLines, source } = useHighlight();
+  const prevLinesRef = useRef<LineRange | null>(null);
+
+  useEffect(() => {
+    // Auto-scroll code viewer when an explanation highlight changes
+    if (
+      activeLines &&
+      source === "explanation" &&
+      (prevLinesRef.current?.start !== activeLines.start || prevLinesRef.current?.end !== activeLines.end)
+    ) {
+      codeViewerRef.current?.scrollToLine(activeLines.start);
+    }
+    prevLinesRef.current = activeLines;
+  }, [activeLines, source, codeViewerRef]);
+
+  return null;
+};
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -118,6 +141,7 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
 
   return (
     <HighlightProvider lineToItems={lineToItems} itemRanges={itemRanges}>
+      <AutoScrollBridge codeViewerRef={codeViewerRef} />
       {hasResults ? (
         <div className="space-y-3 animate-fade-up">
           {/* Top bar: view toggle + contextual hint */}
