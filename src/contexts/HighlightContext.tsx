@@ -92,17 +92,38 @@ export function HighlightProvider({
           return { activeLines: { start: line, end: line }, activeItemId: null, source: "code", confidence: "exact", pinned: false };
         }
         const ids = lineToItems.get(line);
-        const firstId = ids?.[0] ?? null;
+        if (!ids || ids.length === 0) {
+          return { activeLines: { start: line, end: line }, activeItemId: null, source: "code", confidence: "exact", pinned: false };
+        }
+
+        // Pick the most specific (smallest range) item
+        let bestId = ids[0];
+        let bestSize = Infinity;
+        if (itemRanges) {
+          for (const id of ids) {
+            const range = itemRanges.get(id);
+            if (range) {
+              const size = range.end - range.start;
+              if (size < bestSize) {
+                bestSize = size;
+                bestId = id;
+              }
+            }
+          }
+        }
+
+        // Highlight the full range of the best matching item
+        const bestRange = itemRanges?.get(bestId);
         return {
-          activeLines: { start: line, end: line },
-          activeItemId: firstId,
+          activeLines: bestRange ?? { start: line, end: line },
+          activeItemId: bestId,
           source: "code",
           confidence: "exact",
           pinned: false,
         };
       });
     },
-    [lineToItems]
+    [lineToItems, itemRanges]
   );
 
   const clearHighlight = useCallback(() => {
