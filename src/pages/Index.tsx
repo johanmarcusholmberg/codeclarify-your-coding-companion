@@ -288,8 +288,20 @@ const Index = () => {
           <CodeInput
             value={code}
             onChange={(val) => {
-              setCode(val);
+              const cleaned = trimTrailingBlanks(val);
+              setCode(cleaned);
               if (explanation) setExplanation(null);
+              // Auto-detect language on paste (significant change)
+              if (cleaned.length > 20 && Math.abs(cleaned.length - code.length) > 10) {
+                const detected = detectLanguage(cleaned);
+                if (detected && detected !== language) {
+                  setLanguage(detected);
+                  toast("Language detected", {
+                    description: `Switched to ${detected.charAt(0).toUpperCase() + detected.slice(1)}. You can change this manually.`,
+                    duration: 3000,
+                  });
+                }
+              }
             }}
             placeholder={SAMPLE_CODE[language] || SAMPLE_CODE.javascript}
           />
