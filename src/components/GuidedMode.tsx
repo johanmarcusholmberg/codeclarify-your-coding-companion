@@ -6,9 +6,9 @@ import {
   RotateCcw,
   Lightbulb,
   CheckCircle2,
-  Info,
+  BookOpen,
 } from "lucide-react";
-import type { CodeExplanation, LineRange, MappingConfidence, MappingType } from "@/lib/explanationEngine";
+import type { CodeExplanation, LineRange, MappingConfidence } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
 
@@ -79,7 +79,7 @@ function buildGuidedSteps(data: CodeExplanation): GuidedStep[] {
 }
 
 // ---------------------------------------------------------------------------
-// Step dots — responsive
+// Step dots
 // ---------------------------------------------------------------------------
 
 const StepDot = ({ index, active, completed, onClick }: {
@@ -107,25 +107,36 @@ const StepDot = ({ index, active, completed, onClick }: {
 
 interface GuidedModeProps {
   data: CodeExplanation;
+  onScrollToLine?: (line: number) => void;
+  onBackToBrowse?: () => void;
 }
 
-const GuidedMode = ({ data }: GuidedModeProps) => {
+const GuidedMode = ({ data, onScrollToLine, onBackToBrowse }: GuidedModeProps) => {
   const steps = buildGuidedSteps(data);
   const [currentStep, setCurrentStep] = useState(0);
   const { pinHighlight } = useHighlight();
   const contentRef = useRef<HTMLDivElement>(null);
+  // Track previous step to avoid re-triggering effects on same step
+  const prevStepRef = useRef(-1);
 
   const step = steps[currentStep];
   const isFirst = currentStep === 0;
   const isLast = currentStep === steps.length - 1;
   const progress = steps.length > 1 ? (currentStep / (steps.length - 1)) * 100 : 100;
 
-  // Pin highlight when step changes
+  // Pin highlight and scroll code viewer when step changes
   useEffect(() => {
-    if (!step) return;
+    if (!step || currentStep === prevStepRef.current) return;
+    prevStepRef.current = currentStep;
+
     const itemId = makeItemId(step.sectionKey, step.itemIndex);
     pinHighlight(itemId, step.lines, step.confidence);
-  }, [currentStep, step, pinHighlight]);
+
+    // Scroll code viewer to the relevant line
+    if (step.lines && onScrollToLine) {
+      onScrollToLine(step.lines.start);
+    }
+  }, [currentStep, step, pinHighlight, onScrollToLine]);
 
   // Scroll content into view on mobile when step changes
   useEffect(() => {
@@ -202,7 +213,13 @@ const GuidedMode = ({ data }: GuidedModeProps) => {
           </span>
           {step.lines && (
             <span className="text-[10px] text-muted-foreground/50">
-              {step.lines.start === step.lines.end ? `Line ${step.lines.start}` : `Lines ${step.lines.start}–${step.lines.end}`}
+              {step.confidence === "broad"
+                ? step.lines.start === step.lines.end
+                  ? `Around line ${step.lines.start}`
+                  : `Around lines ${step.lines.start}–${step.lines.end}`
+                : step.lines.start === step.lines.end
+                ? `Line ${step.lines.start}`
+                : `Lines ${step.lines.start}–${step.lines.end}`}
             </span>
           )}
           {!step.lines && (
@@ -222,11 +239,22 @@ const GuidedMode = ({ data }: GuidedModeProps) => {
 
         {/* Completion */}
         {isLast && currentStep > 0 && (
-          <div className="mt-4 rounded-xl bg-sage-light/60 border border-sage-medium/30 px-3.5 sm:px-4 py-3 flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-sage mt-0.5 shrink-0" />
-            <p className="text-[12px] sm:text-[13px] text-foreground leading-relaxed">
-              You've walked through the entire code! Go back to review any step, or switch to Browse for more detail.
-            </p>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl bg-sage-light/60 border border-sage-medium/30 px-3.5 sm:px-4 py-3 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-sage mt-0.5 shrink-0" />
+              <p className="text-[12px] sm:text-[13px] text-foreground leading-relaxed">
+                You've walked through the entire code! Review any step, or switch to Browse for the full breakdown.
+              </p>
+            </div>
+            {onBackToBrowse && (
+              <button
+                onClick={onBackToBrowse}
+                className="w-full inline-flex items-center justify-center gap-2 text-[13px] sm:text-sm font-medium px-4 py-2.5 rounded-lg border border-border bg-card hover:bg-muted/60 text-foreground transition-all duration-200 active:scale-[0.98]"
+              >
+                <BookOpen className="w-4 h-4" />
+                Back to Browse — review all explanations
+              </button>
+            )}
           </div>
         )}
       </div>

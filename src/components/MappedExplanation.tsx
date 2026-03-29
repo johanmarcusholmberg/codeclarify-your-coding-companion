@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { Info, BookOpen, Play } from "lucide-react";
-import CodeViewer from "@/components/CodeViewer";
+import CodeViewer, { type CodeViewerHandle } from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import GuidedMode from "@/components/GuidedMode";
 import { HighlightProvider } from "@/contexts/HighlightContext";
@@ -55,7 +55,7 @@ function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItem
 }
 
 // ---------------------------------------------------------------------------
-// View mode toggle — consistent sizing on all screens
+// View mode toggle
 // ---------------------------------------------------------------------------
 
 const ViewModeToggle = ({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) => (
@@ -91,6 +91,7 @@ const ViewModeToggle = ({ mode, onChange }: { mode: ViewMode; onChange: (m: View
 
 const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("categorized");
+  const codeViewerRef = useRef<CodeViewerHandle>(null);
 
   const lineToItems = useMemo(
     () => (data ? buildLineToItemsMap(data) : undefined),
@@ -98,6 +99,14 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   );
 
   const hasResults = !!data || isLoading;
+
+  const handleScrollToLine = useCallback((line: number) => {
+    codeViewerRef.current?.scrollToLine(line);
+  }, []);
+
+  const handleBackToBrowse = useCallback(() => {
+    setViewMode("categorized");
+  }, []);
 
   return (
     <HighlightProvider lineToItems={lineToItems}>
@@ -123,17 +132,19 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
             </p>
           </div>
 
-          {/* Two-panel layout — stacked on mobile, side-by-side on desktop */}
+          {/* Two-panel layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5 items-start">
-            {/* Code viewer — collapsible on mobile when guided mode */}
             <div className="lg:sticky lg:top-20">
-              <CodeViewer code={code} />
+              <CodeViewer ref={codeViewerRef} code={code} />
             </div>
 
-            {/* Explanation / Guided */}
             <div>
               {viewMode === "guided" && data && !isLoading ? (
-                <GuidedMode data={data} />
+                <GuidedMode
+                  data={data}
+                  onScrollToLine={handleScrollToLine}
+                  onBackToBrowse={handleBackToBrowse}
+                />
               ) : (
                 <ExplanationPanel data={data} isLoading={isLoading} />
               )}
