@@ -4,7 +4,7 @@ import CodeViewer, { type CodeViewerHandle } from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import GuidedMode from "@/components/GuidedMode";
 import { HighlightProvider } from "@/contexts/HighlightContext";
-import type { CodeExplanation, ExplanationItemId } from "@/lib/explanationEngine";
+import type { CodeExplanation, ExplanationItemId, LineRange } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 
 type ViewMode = "categorized" | "guided";
@@ -24,17 +24,22 @@ const SECTION_KEYS = [
   "suggestions",
 ] as const;
 
-function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItemId[]> {
-  const map = new Map<number, ExplanationItemId[]>();
+function buildLineToItemsMap(data: CodeExplanation): {
+  lineToItems: Map<number, ExplanationItemId[]>;
+  itemRanges: Map<ExplanationItemId, LineRange>;
+} {
+  const lineMap = new Map<number, ExplanationItemId[]>();
+  const rangeMap = new Map<ExplanationItemId, LineRange>();
 
   const addToMap = (line: number, id: ExplanationItemId) => {
-    const existing = map.get(line);
+    const existing = lineMap.get(line);
     if (existing) existing.push(id);
-    else map.set(line, [id]);
+    else lineMap.set(line, [id]);
   };
 
   const addRange = (lines: { start: number; end: number } | undefined, id: ExplanationItemId) => {
     if (!lines) return;
+    rangeMap.set(id, lines);
     for (let l = lines.start; l <= lines.end; l++) addToMap(l, id);
   };
 
@@ -51,7 +56,7 @@ function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItem
   data.dataFlow.forEach((step, idx) => addRange(step.lines, makeItemId("dataFlow", idx)));
   data.contextSuggestions.forEach((s, idx) => addRange(s.lines, makeItemId("contextSuggestions", idx)));
 
-  return map;
+  return { lineToItems: lineMap, itemRanges: rangeMap };
 }
 
 // ---------------------------------------------------------------------------
@@ -93,10 +98,13 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   const [viewMode, setViewMode] = useState<ViewMode>("categorized");
   const codeViewerRef = useRef<CodeViewerHandle>(null);
 
-  const lineToItems = useMemo(
+  const mappingData = useMemo(
     () => (data ? buildLineToItemsMap(data) : undefined),
     [data]
   );
+
+  const lineToItems = mappingData?.lineToItems;
+  const itemRanges = mappingData?.itemRanges;
 
   const hasResults = !!data || isLoading;
 
@@ -109,7 +117,7 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   }, []);
 
   return (
-    <HighlightProvider lineToItems={lineToItems}>
+    <HighlightProvider lineToItems={lineToItems} itemRanges={itemRanges}>
       {hasResults ? (
         <div className="space-y-3 animate-fade-up">
           {/* Top bar: view toggle + contextual hint */}

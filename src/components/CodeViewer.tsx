@@ -52,9 +52,9 @@ interface LineInfo {
   section: string;
 }
 
-/** Build a map from line number to the best explanation item for that line */
-function buildLineInfoMap(data: CodeExplanation): Map<number, LineInfo> {
-  const map = new Map<number, LineInfo>();
+/** Build a map from line number to the best (most specific) explanation item for that line */
+function buildLineInfoMap(data: CodeExplanation): Map<number, LineInfo & { rangeSize: number; lines: LineRange }> {
+  const map = new Map<number, LineInfo & { rangeSize: number; lines: LineRange }>();
 
   const sectionLabels: Record<string, string> = {
     structure: "Structure",
@@ -68,12 +68,12 @@ function buildLineInfoMap(data: CodeExplanation): Map<number, LineInfo> {
   for (const key of SECTION_KEYS) {
     for (const item of data[key]) {
       if (!item.lines) continue;
+      const rangeSize = item.lines.end - item.lines.start;
       for (let l = item.lines.start; l <= item.lines.end; l++) {
-        // Prefer more specific (smaller range) items
         const existing = map.get(l);
-        const currentRange = item.lines.end - item.lines.start;
-        if (!existing) {
-          map.set(l, { label: item.label, detail: item.detail, section: sectionLabels[key] || key });
+        // Prefer more specific (smaller range) items
+        if (!existing || rangeSize < existing.rangeSize) {
+          map.set(l, { label: item.label, detail: item.detail, section: sectionLabels[key] || key, rangeSize, lines: item.lines });
         }
       }
     }

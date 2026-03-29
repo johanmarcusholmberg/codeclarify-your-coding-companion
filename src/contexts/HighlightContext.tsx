@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { LineRange, ExplanationItemId, MappingConfidence } from "@/lib/explanationEngine";
+import type { LineRange, ExplanationItemId, MappingConfidence, ExplanationItem } from "@/lib/explanationEngine";
 
 interface HighlightState {
   /** Currently highlighted lines in the code viewer */
@@ -38,10 +38,18 @@ export function useHighlight() {
   return ctx;
 }
 
+interface ItemRangeInfo {
+  id: ExplanationItemId;
+  lines: LineRange;
+  rangeSize: number;
+}
+
 interface HighlightProviderProps {
   children: ReactNode;
   /** Map from line number → explanation item IDs that reference it */
   lineToItems?: Map<number, ExplanationItemId[]>;
+  /** Map from item ID → its line range (for selecting coherent ranges) */
+  itemRanges?: Map<ExplanationItemId, LineRange>;
 }
 
 const INITIAL: HighlightState = {
@@ -55,6 +63,7 @@ const INITIAL: HighlightState = {
 export function HighlightProvider({
   children,
   lineToItems,
+  itemRanges,
 }: HighlightProviderProps) {
   const [state, setState] = useState<HighlightState>(INITIAL);
 
@@ -83,17 +92,38 @@ export function HighlightProvider({
           return { activeLines: { start: line, end: line }, activeItemId: null, source: "code", confidence: "exact", pinned: false };
         }
         const ids = lineToItems.get(line);
-        const firstId = ids?.[0] ?? null;
+        if (!ids || ids.length === 0) {
+          return { activeLines: { start: line, end: line }, activeItemId: null, source: "code", confidence: "exact", pinned: false };
+        }
+
+        // Pick the most specific (smallest range) item
+        let bestId = ids[0];
+        let bestSize = Infinity;
+        if (itemRanges) {
+          for (const id of ids) {
+            const range = itemRanges.get(id);
+            if (range) {
+              const size = range.end - range.start;
+              if (size < bestSize) {
+                bestSize = size;
+                bestId = id;
+              }
+            }
+          }
+        }
+
+        // Highlight the full range of the best matching item
+        const bestRange = itemRanges?.get(bestId);
         return {
-          activeLines: { start: line, end: line },
-          activeItemId: firstId,
+          activeLines: bestRange ?? { start: line, end: line },
+          activeItemId: bestId,
           source: "code",
           confidence: "exact",
           pinned: false,
         };
       });
     },
-    [lineToItems]
+    [lineToItems, itemRanges]
   );
 
   const clearHighlight = useCallback(() => {

@@ -17,7 +17,9 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
     // Reset then measure
     el.style.height = "0px";
     const scrollH = el.scrollHeight;
-    const h = Math.max(140, Math.min(scrollH, 420));
+    // Cap at ~50 rows (50 * 1.625rem line-height ≈ 1300px)
+    const maxH = 50 * 26; // 26px per row at 1.625rem
+    const h = Math.max(140, Math.min(scrollH, maxH));
     el.style.height = h + "px";
   }, []);
 
@@ -64,7 +66,7 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
           autoComplete="off"
           data-gramm="false"
           className="flex-1 resize-none bg-transparent py-3 px-3 sm:px-4 font-mono text-[12px] sm:text-sm leading-[1.625rem] text-code-foreground placeholder:text-code-line/40 focus:outline-none overflow-y-auto"
-          style={{ minHeight: 140, maxHeight: 420 }}
+          style={{ minHeight: 140, maxHeight: 50 * 26 }}
         />
       </div>
     </div>
