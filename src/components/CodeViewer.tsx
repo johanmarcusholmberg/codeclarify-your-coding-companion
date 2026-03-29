@@ -1,6 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import { useHighlight } from "@/contexts/HighlightContext";
 import type { LineRange, MappingConfidence } from "@/lib/explanationEngine";
+
+export interface CodeViewerHandle {
+  scrollToLine: (line: number) => void;
+}
 
 interface CodeViewerProps {
   code: string;
@@ -36,10 +40,27 @@ function getLineClasses(
   return { row: "bg-muted/15", num: "text-code-line" };
 }
 
-const CodeViewer = ({ code }: CodeViewerProps) => {
+const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref) => {
   const { activeLines, confidence, pinned, highlightFromCode, clearHighlight } = useHighlight();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const lines = useMemo(() => code.split("\n"), [code]);
+
+  useImperativeHandle(ref, () => ({
+    scrollToLine(line: number) {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      // Reset horizontal scroll
+      container.scrollLeft = 0;
+      // Each row is ~26px (leading-[1.625rem])
+      const rowHeight = 26;
+      const targetY = (line - 1) * rowHeight;
+      const containerHeight = container.clientHeight;
+      // Center the target line in the viewport
+      const scrollTo = Math.max(0, targetY - containerHeight / 3);
+      container.scrollTo({ top: scrollTo, left: 0, behavior: "smooth" });
+    },
+  }));
 
   return (
     <div className="rounded-xl border border-border bg-code-bg overflow-hidden surface-elevated font-mono text-sm leading-[1.625rem]">
@@ -59,7 +80,7 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
       </div>
 
       {/* Code lines */}
-      <div className="overflow-x-auto max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
+      <div ref={scrollContainerRef} className="overflow-x-auto max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => {
@@ -69,14 +90,14 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
               return (
                 <tr
                   key={lineNum}
-                  className={`group cursor-pointer transition-all duration-150 ${classes.row}`}
+                  className={`group cursor-pointer transition-colors duration-100 ${classes.row}`}
                   onMouseEnter={() => highlightFromCode(lineNum)}
                   onMouseLeave={clearHighlight}
                   role="row"
                   aria-label={`Line ${lineNum}`}
                 >
                   <td
-                    className={`select-none text-right pr-2 sm:pr-3 pl-3 sm:pl-4 py-0 w-8 sm:w-10 text-[11px] sm:text-xs transition-colors duration-150 ${classes.num}`}
+                    className={`select-none text-right pr-2 sm:pr-3 pl-3 sm:pl-4 py-0 w-8 sm:w-10 text-[11px] sm:text-xs transition-colors duration-100 ${classes.num}`}
                     aria-hidden="true"
                   >
                     {lineNum}
@@ -99,6 +120,8 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
       </div>
     </div>
   );
-};
+});
+
+CodeViewer.displayName = "CodeViewer";
 
 export default CodeViewer;

@@ -19,7 +19,7 @@ Schema:
   "variables": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped", "mappingType": "code-location" | "conceptual" | "flow" | "relationship", "reasoning": "string | null" }],
   "logic": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped", "mappingType": "code-location" | "conceptual" | "flow" | "relationship", "reasoning": "string | null" }],
   "syntax": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped", "mappingType": "code-location" | "conceptual" | "flow" | "relationship", "reasoning": "string | null" }],
-  "suggestions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped", "mappingType": "code-location" | "conceptual" | "flow" | "relationship", "reasoning": "string | null" }],
+  "suggestions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped", "mappingType": "code-location" | "conceptual" | "flow" | "relationship", "reasoning": "string | null", "category": "readability" | "maintainability" | "performance" | "correctness" | "best-practice", "priority": "high" | "medium" | "low" }],
   "beginnerMode": "string — a simple metaphor-based explanation for total beginners",
   "relationships": [{ "from": "string", "to": "string", "type": "uses|called-by|depends-on|returns|updates|filters|loops-through|defines|passes-to", "detail": "string", "fromLines": { "start": number, "end": number }, "toLines": { "start": number, "end": number }, "reasoning": "string | null" }],
   "dataFlow": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
@@ -29,14 +29,22 @@ Schema:
 
 Rules:
 - Line numbers are 1-indexed and refer to the pasted snippet.
-- PRECISION IS CRITICAL: Prefer small, precise line ranges over broad ones.
-  - A single variable declaration → map to that one line, confidence "exact".
-  - A function body → map to its start and end lines, confidence "exact".
-  - A general observation about code style → set lines to null, confidence "unmapped", mappingType "conceptual".
-  - An item that spans multiple unrelated sections → confidence "broad", mappingType "conceptual".
+
+LINE MAPPING PRECISION (CRITICAL):
+- Count lines carefully. The first line of the snippet is line 1.
+- Before assigning a line number, mentally verify: "Does line N actually contain the code I'm describing?"
+- For SQL: COUNT, SUM, AVG, CASE, JOIN, WHERE, GROUP BY, ORDER BY each appear on specific lines. Map each to its actual line, not the SELECT line.
+- For nested blocks (if/else, loops, CASE/WHEN): map to the exact lines of the block, not the parent statement.
+- If an item spans lines 3-5, do NOT say lines 2-6. Be precise.
+- Single-line items (a variable declaration, one condition) → map to that one line with confidence "exact".
+- Multi-line blocks (function body, loop body) → map to start and end lines with confidence "exact".
+- If the explanation is about a concept or pattern rather than specific code → set lines to null, confidence "unmapped", mappingType "conceptual".
+- If you are not 100% sure about the exact lines → use confidence "likely" or "broad" honestly. NEVER mark uncertain mappings as "exact".
+- Off-by-one errors are unacceptable. Double-check every line number.
+
 - "confidence" values:
   - "exact": the lines field precisely covers the code this item explains.
-  - "likely": the lines are very close but not character-precise (e.g. explanation covers behavior that also depends on context outside those lines).
+  - "likely": the lines are very close but not character-precise.
   - "broad": the explanation covers a large or multiple sections — the line range is approximate.
   - "unmapped": no specific lines apply. Set lines to null.
 - "mappingType" values:
@@ -44,11 +52,20 @@ Rules:
   - "conceptual": a higher-level concept or pattern explanation, not tied to one location.
   - "flow": explains data flow or execution order across multiple locations.
   - "relationship": explains how two or more parts interact.
-- "reasoning": a short phrase (max ~15 words) explaining why this mapping was chosen. E.g. "Function declaration spans these exact lines", "General pattern observation", "Relates to multiple scattered usages". Set to null if the mapping is straightforward (exact, code-location).
-- Do NOT force broad ranges to appear exact. If unsure, use "likely" or "broad" honestly.
+- "reasoning": a short phrase (max ~15 words) explaining why this mapping was chosen. Set to null if the mapping is straightforward (exact, code-location).
 - summaryLines should cover the entire snippet.
 - All arrays can be empty if the section doesn't apply.
 - Keep explanations friendly and non-judgmental.
+
+SUGGESTIONS QUALITY (IMPORTANT):
+- Each suggestion MUST include "category" (one of: readability, maintainability, performance, correctness, best-practice) and "priority" (high, medium, low).
+- High priority: correctness issues, bugs, missing error handling.
+- Medium priority: maintainability, readability improvements that would meaningfully help.
+- Low priority: stylistic preferences, minor best practices.
+- Be specific: say exactly what to change and why it matters.
+- Avoid vague filler like "add comments" or "use better names" unless you specify which names and why.
+- Explain the reasoning in a beginner-friendly way — help users understand not just what to change, but why.
+- Order suggestions by priority (high first).
 
 Depth modes:
 - "beginner": Use very simple language, more metaphors, avoid jargon, explain concepts that seem obvious. Add encouraging phrases.

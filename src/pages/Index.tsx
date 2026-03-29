@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Play, Sparkles, History, X, Clock, Trash2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import CodeInput from "@/components/CodeInput";
@@ -8,6 +8,7 @@ import MappedExplanation from "@/components/MappedExplanation";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_CODE } from "@/lib/sampleCode";
 import { generateExplanation, type CodeExplanation, type DepthMode } from "@/lib/explanationEngine";
+import { detectLanguage, trimTrailingBlanks } from "@/lib/languageDetector";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -287,8 +288,20 @@ const Index = () => {
           <CodeInput
             value={code}
             onChange={(val) => {
-              setCode(val);
+              const cleaned = trimTrailingBlanks(val);
+              setCode(cleaned);
               if (explanation) setExplanation(null);
+              // Auto-detect language on paste (significant change)
+              if (cleaned.length > 20 && Math.abs(cleaned.length - code.length) > 10) {
+                const detected = detectLanguage(cleaned);
+                if (detected && detected !== language) {
+                  setLanguage(detected);
+                  toast("Language detected", {
+                    description: `Switched to ${detected.charAt(0).toUpperCase() + detected.slice(1)}. You can change this manually.`,
+                    duration: 3000,
+                  });
+                }
+              }
             }}
             placeholder={SAMPLE_CODE[language] || SAMPLE_CODE.javascript}
           />
