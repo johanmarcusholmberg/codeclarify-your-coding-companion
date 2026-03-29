@@ -24,17 +24,22 @@ const SECTION_KEYS = [
   "suggestions",
 ] as const;
 
-function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItemId[]> {
-  const map = new Map<number, ExplanationItemId[]>();
+function buildLineToItemsMap(data: CodeExplanation): {
+  lineToItems: Map<number, ExplanationItemId[]>;
+  itemRanges: Map<ExplanationItemId, LineRange>;
+} {
+  const lineMap = new Map<number, ExplanationItemId[]>();
+  const rangeMap = new Map<ExplanationItemId, LineRange>();
 
   const addToMap = (line: number, id: ExplanationItemId) => {
-    const existing = map.get(line);
+    const existing = lineMap.get(line);
     if (existing) existing.push(id);
-    else map.set(line, [id]);
+    else lineMap.set(line, [id]);
   };
 
   const addRange = (lines: { start: number; end: number } | undefined, id: ExplanationItemId) => {
     if (!lines) return;
+    rangeMap.set(id, lines);
     for (let l = lines.start; l <= lines.end; l++) addToMap(l, id);
   };
 
@@ -51,7 +56,7 @@ function buildLineToItemsMap(data: CodeExplanation): Map<number, ExplanationItem
   data.dataFlow.forEach((step, idx) => addRange(step.lines, makeItemId("dataFlow", idx)));
   data.contextSuggestions.forEach((s, idx) => addRange(s.lines, makeItemId("contextSuggestions", idx)));
 
-  return map;
+  return { lineToItems: lineMap, itemRanges: rangeMap };
 }
 
 // ---------------------------------------------------------------------------
