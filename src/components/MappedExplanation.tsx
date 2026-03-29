@@ -4,7 +4,7 @@ import CodeViewer, { type CodeViewerHandle } from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import GuidedMode from "@/components/GuidedMode";
 import { HighlightProvider } from "@/contexts/HighlightContext";
-import type { CodeExplanation, ExplanationItemId } from "@/lib/explanationEngine";
+import type { CodeExplanation, ExplanationItemId, LineRange } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 
 type ViewMode = "categorized" | "guided";
