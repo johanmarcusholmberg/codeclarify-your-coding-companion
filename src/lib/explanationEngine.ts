@@ -23,6 +23,10 @@ export interface ExplanationItem {
   mappingType?: MappingType;
   /** Optional short reasoning for why this mapping was chosen */
   reasoning?: string;
+  /** Suggestion category (only for suggestions) */
+  category?: "readability" | "maintainability" | "performance" | "correctness" | "best-practice";
+  /** Suggestion priority (only for suggestions) */
+  priority?: "high" | "medium" | "low";
 }
 
 /** Relationship tag types for visual badges */
