@@ -120,7 +120,8 @@ const Index = () => {
     }
     dismissOnboarding();
     setIsLoading(true);
-    setSubmittedCode(code);
+    const normalized = normalizeCode(code);
+    setSubmittedCode(normalized);
     try {
       const result = await generateExplanation(code, language, depth);
       setExplanation(result);
