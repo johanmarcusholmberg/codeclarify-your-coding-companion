@@ -32,6 +32,7 @@ import type {
   ContextSuggestion,
   RelationshipType,
   MappingConfidence,
+  MappingType,
 } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
