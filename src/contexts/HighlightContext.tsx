@@ -38,10 +38,18 @@ export function useHighlight() {
   return ctx;
 }
 
+interface ItemRangeInfo {
+  id: ExplanationItemId;
+  lines: LineRange;
+  rangeSize: number;
+}
+
 interface HighlightProviderProps {
   children: ReactNode;
   /** Map from line number → explanation item IDs that reference it */
   lineToItems?: Map<number, ExplanationItemId[]>;
+  /** Map from item ID → its line range (for selecting coherent ranges) */
+  itemRanges?: Map<ExplanationItemId, LineRange>;
 }
 
 const INITIAL: HighlightState = {
