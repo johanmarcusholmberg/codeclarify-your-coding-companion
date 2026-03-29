@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useHighlight } from "@/contexts/HighlightContext";
 import type { LineRange, MappingConfidence } from "@/lib/explanationEngine";
-import { MousePointerClick } from "lucide-react";
 
 interface CodeViewerProps {
   code: string;
@@ -19,24 +18,22 @@ function getLineClasses(
 ): { row: string; num: string } {
   if (!highlighted) {
     return {
-      row: "hover:bg-muted/40",
+      row: "hover:bg-muted/30",
       num: "text-code-line",
     };
   }
 
   if (pinned) {
-    // Pinned states — stronger visual
     if (confidence === "exact") return { row: "bg-code-highlight ring-1 ring-inset ring-sage-medium/50", num: "text-sage font-semibold" };
     if (confidence === "likely") return { row: "bg-code-highlight/80 ring-1 ring-inset ring-sage-medium/30", num: "text-sage font-medium" };
-    if (confidence === "broad") return { row: "bg-code-highlight/50 ring-1 ring-inset ring-dashed ring-sage-medium/20", num: "text-sage/70 font-medium" };
-    return { row: "bg-muted/30", num: "text-code-line" };
+    if (confidence === "broad") return { row: "bg-code-highlight/40 border-l-2 border-l-sage-medium/30", num: "text-sage/60 font-medium" };
+    return { row: "bg-muted/20", num: "text-code-line" };
   }
 
-  // Hover states — softer visual
   if (confidence === "exact") return { row: "bg-code-highlight", num: "text-sage font-medium" };
-  if (confidence === "likely") return { row: "bg-code-highlight/70", num: "text-sage/80 font-medium" };
-  if (confidence === "broad") return { row: "bg-code-highlight/40", num: "text-sage/60" };
-  return { row: "bg-muted/20", num: "text-code-line" };
+  if (confidence === "likely") return { row: "bg-code-highlight/60", num: "text-sage/70" };
+  if (confidence === "broad") return { row: "bg-code-highlight/30", num: "text-sage/50" };
+  return { row: "bg-muted/15", num: "text-code-line" };
 }
 
 const CodeViewer = ({ code }: CodeViewerProps) => {
@@ -46,21 +43,23 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
 
   return (
     <div className="rounded-xl border border-border bg-code-bg overflow-hidden surface-elevated font-mono text-sm leading-[1.625rem]">
-      <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between gap-2">
+      {/* Header */}
+      <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/50 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-border" />
-            <span className="w-2.5 h-2.5 rounded-full bg-border" />
-            <span className="w-2.5 h-2.5 rounded-full bg-border" />
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-border" />
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-border" />
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-border" />
           </div>
-          <span className="text-xs text-muted-foreground ml-2">Source code</span>
+          <span className="text-[11px] sm:text-xs text-muted-foreground ml-1 sm:ml-2">Source code</span>
         </div>
-        <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-          <MousePointerClick className="w-3 h-3" />
-          Hover or click explanations to connect
+        <span className="text-[9px] sm:text-[10px] text-muted-foreground/40 hidden sm:flex items-center gap-1">
+          Click an explanation card to highlight its code
         </span>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Code lines */}
+      <div className="overflow-x-auto max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => {
@@ -77,12 +76,12 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
                   aria-label={`Line ${lineNum}`}
                 >
                   <td
-                    className={`select-none text-right pr-3 pl-4 py-0 w-10 text-xs transition-colors duration-150 ${classes.num}`}
+                    className={`select-none text-right pr-2 sm:pr-3 pl-3 sm:pl-4 py-0 w-8 sm:w-10 text-[11px] sm:text-xs transition-colors duration-150 ${classes.num}`}
                     aria-hidden="true"
                   >
                     {lineNum}
                   </td>
-                  <td className="pr-4 py-0 whitespace-pre text-code-foreground">
+                  <td className="pr-3 sm:pr-4 py-0 whitespace-pre text-code-foreground text-[13px] sm:text-sm">
                     {line || "\u00A0"}
                   </td>
                 </tr>
@@ -90,6 +89,13 @@ const CodeViewer = ({ code }: CodeViewerProps) => {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile hint — only on small screens */}
+      <div className="sm:hidden border-t border-border/40 px-3 py-2 bg-muted/20">
+        <p className="text-[10px] text-muted-foreground/50 text-center">
+          Tap an explanation below to highlight related code
+        </p>
       </div>
     </div>
   );
