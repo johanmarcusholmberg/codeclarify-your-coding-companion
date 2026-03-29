@@ -91,6 +91,29 @@ const ViewModeToggle = ({ mode, onChange }: { mode: ViewMode; onChange: (m: View
 );
 
 // ---------------------------------------------------------------------------
+// Auto-scroll bridge — watches highlight changes and scrolls code viewer
+// ---------------------------------------------------------------------------
+
+const AutoScrollBridge = ({ codeViewerRef }: { codeViewerRef: React.RefObject<CodeViewerHandle> }) => {
+  const { activeLines, source } = useHighlight();
+  const prevLinesRef = useRef<LineRange | null>(null);
+
+  useEffect(() => {
+    // Auto-scroll code viewer when an explanation highlight changes
+    if (
+      activeLines &&
+      source === "explanation" &&
+      (prevLinesRef.current?.start !== activeLines.start || prevLinesRef.current?.end !== activeLines.end)
+    ) {
+      codeViewerRef.current?.scrollToLine(activeLines.start);
+    }
+    prevLinesRef.current = activeLines;
+  }, [activeLines, source, codeViewerRef]);
+
+  return null;
+};
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
