@@ -44,7 +44,11 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
   const { activeLines, confidence, pinned, highlightFromCode, clearHighlight } = useHighlight();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const lines = useMemo(() => code.split("\n"), [code]);
+  const lines = useMemo(() => {
+    // Normalize: strip leading/trailing blank lines for clean display
+    const trimmed = code.replace(/^\s*\n/, "").replace(/\n\s*$/g, "");
+    return trimmed.split("\n");
+  }, [code]);
 
   useImperativeHandle(ref, () => ({
     scrollToLine(line: number) {
