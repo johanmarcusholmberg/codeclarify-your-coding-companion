@@ -1,6 +1,8 @@
-import { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useMemo, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
+import { X, Info } from "lucide-react";
 import { useHighlight } from "@/contexts/HighlightContext";
-import type { LineRange, MappingConfidence } from "@/lib/explanationEngine";
+import type { LineRange, MappingConfidence, ExplanationItemId, CodeExplanation } from "@/lib/explanationEngine";
+import { makeItemId } from "@/lib/explanationEngine";
 
 export interface CodeViewerHandle {
   scrollToLine: (line: number) => void;
@@ -8,6 +10,8 @@ export interface CodeViewerHandle {
 
 interface CodeViewerProps {
   code: string;
+  /** Pass explanation data so clicking a line can show what it does */
+  explanationData?: CodeExplanation | null;
 }
 
 function isLineHighlighted(line: number, range: LineRange | null): boolean {
@@ -40,28 +44,76 @@ function getLineClasses(
   return { row: "bg-muted/15", num: "text-code-line" };
 }
 
-const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref) => {
+const SECTION_KEYS = ["structure", "functions", "variables", "logic", "syntax", "suggestions"] as const;
+
+interface LineInfo {
+  label: string;
+  detail: string;
+  section: string;
+}
+
+/** Build a map from line number to the best explanation item for that line */
+function buildLineInfoMap(data: CodeExplanation): Map<number, LineInfo> {
+  const map = new Map<number, LineInfo>();
+
+  const sectionLabels: Record<string, string> = {
+    structure: "Structure",
+    functions: "Function",
+    variables: "Variable",
+    logic: "Logic",
+    syntax: "Syntax",
+    suggestions: "Suggestion",
+  };
+
+  for (const key of SECTION_KEYS) {
+    for (const item of data[key]) {
+      if (!item.lines) continue;
+      for (let l = item.lines.start; l <= item.lines.end; l++) {
+        // Prefer more specific (smaller range) items
+        const existing = map.get(l);
+        const currentRange = item.lines.end - item.lines.start;
+        if (!existing) {
+          map.set(l, { label: item.label, detail: item.detail, section: sectionLabels[key] || key });
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
+const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code, explanationData }, ref) => {
   const { activeLines, confidence, pinned, highlightFromCode, clearHighlight } = useHighlight();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [clickedLine, setClickedLine] = useState<number | null>(null);
 
   const lines = useMemo(() => {
-    // Normalize: strip leading/trailing blank lines for clean display
     const trimmed = code.replace(/^\s*\n/, "").replace(/\n\s*$/g, "");
     return trimmed.split("\n");
   }, [code]);
+
+  const lineInfoMap = useMemo(
+    () => (explanationData ? buildLineInfoMap(explanationData) : new Map<number, LineInfo>()),
+    [explanationData]
+  );
+
+  const clickedInfo = clickedLine ? lineInfoMap.get(clickedLine) : null;
+
+  const handleLineClick = useCallback((lineNum: number) => {
+    setClickedLine((prev) => (prev === lineNum ? null : lineNum));
+  }, []);
+
+  const dismissTooltip = useCallback(() => setClickedLine(null), []);
 
   useImperativeHandle(ref, () => ({
     scrollToLine(line: number) {
       const container = scrollContainerRef.current;
       if (!container) return;
-      // Reset horizontal scroll
       container.scrollLeft = 0;
-      // Measure actual row height from DOM if possible
       const firstRow = container.querySelector("tr");
       const rowHeight = firstRow ? firstRow.getBoundingClientRect().height : 26;
       const targetY = (line - 1) * rowHeight;
       const containerHeight = container.clientHeight;
-      // Place the target line ~25% from top so it's clearly visible
       const scrollTo = Math.max(0, targetY - containerHeight * 0.25);
       container.scrollTo({ top: scrollTo, left: 0, behavior: "smooth" });
     },
@@ -69,7 +121,7 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
 
   return (
     <div className="rounded-xl border border-border bg-code-bg overflow-hidden surface-elevated font-mono text-sm leading-[1.625rem]">
-      {/* Header — not sticky, sits above scrollable area */}
+      {/* Header */}
       <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/50 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -80,24 +132,64 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
           <span className="text-[11px] sm:text-xs text-muted-foreground ml-1 sm:ml-2">Source code</span>
         </div>
         <span className="text-[9px] sm:text-[10px] text-muted-foreground/40 hidden sm:flex items-center gap-1">
-          Click an explanation card to highlight its code
+          Click a line to see what it does
         </span>
       </div>
 
-      {/* Code lines — header is outside scroll area so it never covers code */}
+      {/* Inline tooltip for clicked line */}
+      {clickedLine !== null && (
+        <div className="px-3 sm:px-4 py-2 border-b border-sage-medium/30 bg-sage-light/40 animate-fade-up">
+          <div className="flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 text-sage mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0 font-sans">
+              {clickedInfo ? (
+                <>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-medium text-sage bg-sage/10 px-1.5 py-0.5 rounded">
+                      {clickedInfo.section}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">Line {clickedLine}</span>
+                  </div>
+                  <p className="text-xs font-medium text-foreground">{clickedInfo.label}</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-3">{clickedInfo.detail}</p>
+                </>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  No specific explanation for line {clickedLine}. Try clicking a line with code on it.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={dismissTooltip}
+              className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted/60 transition-colors shrink-0"
+              aria-label="Dismiss"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Code lines */}
       <div ref={scrollContainerRef} className="overflow-x-auto max-h-[50vh] sm:max-h-[65vh] overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => {
               const lineNum = idx + 1;
-              const highlighted = isLineHighlighted(lineNum, activeLines);
-              const classes = getLineClasses(highlighted, pinned, confidence);
+              const highlighted = isLineHighlighted(lineNum, activeLines) || lineNum === clickedLine;
+              const isClicked = lineNum === clickedLine;
+              const classes = getLineClasses(
+                highlighted,
+                pinned || isClicked,
+                isClicked ? "exact" : confidence
+              );
               return (
                 <tr
                   key={lineNum}
                   className={`group cursor-pointer transition-colors duration-100 ${classes.row}`}
                   onMouseEnter={() => highlightFromCode(lineNum)}
                   onMouseLeave={clearHighlight}
+                  onClick={() => handleLineClick(lineNum)}
                   role="row"
                   aria-label={`Line ${lineNum}`}
                 >
@@ -117,10 +209,10 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
         </table>
       </div>
 
-      {/* Mobile hint — only on small screens */}
+      {/* Mobile hint */}
       <div className="sm:hidden border-t border-border/40 px-3 py-2 bg-muted/20">
         <p className="text-[10px] text-muted-foreground/50 text-center">
-          Tap an explanation below to highlight related code
+          Tap a line to see what it does
         </p>
       </div>
     </div>
