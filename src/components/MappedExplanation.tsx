@@ -98,10 +98,13 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   const [viewMode, setViewMode] = useState<ViewMode>("categorized");
   const codeViewerRef = useRef<CodeViewerHandle>(null);
 
-  const lineToItems = useMemo(
+  const mappingData = useMemo(
     () => (data ? buildLineToItemsMap(data) : undefined),
     [data]
   );
+
+  const lineToItems = mappingData?.lineToItems;
+  const itemRanges = mappingData?.itemRanges;
 
   const hasResults = !!data || isLoading;
 
