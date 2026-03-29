@@ -141,6 +141,7 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
 
   return (
     <HighlightProvider lineToItems={lineToItems} itemRanges={itemRanges}>
+      <AutoScrollBridge codeViewerRef={codeViewerRef} />
       {hasResults ? (
         <div className="space-y-3 animate-fade-up">
           {/* Top bar: view toggle + contextual hint */}
