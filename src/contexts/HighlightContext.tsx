@@ -63,6 +63,7 @@ const INITIAL: HighlightState = {
 export function HighlightProvider({
   children,
   lineToItems,
+  itemRanges,
 }: HighlightProviderProps) {
   const [state, setState] = useState<HighlightState>(INITIAL);
 
