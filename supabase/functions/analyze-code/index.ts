@@ -30,6 +30,8 @@ Schema:
 Rules:
 - Line numbers are 1-indexed and refer to the pasted snippet.
 - "lines" fields map explanation items to code ranges. Always include them when possible.
+- "confidence" indicates how precisely the explanation maps: "exact" for precise line matches, "likely" for high-confidence but not character-precise, "broad" for explanations spanning large or multiple sections, "unmapped" when no specific lines apply.
+- Default to "exact" for most items. Use "likely" or "broad" honestly when the explanation covers general concepts or multiple areas.
 - summaryLines should cover the entire snippet.
 - All arrays can be empty if the section doesn't apply.
 - Keep explanations friendly and non-judgmental.

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Info } from "lucide-react";
 import CodeViewer from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import { HighlightProvider } from "@/contexts/HighlightContext";
