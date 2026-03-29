@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Workflow,
   Share2,
+  MapPin,
 } from "lucide-react";
 import type {
   CodeExplanation,
@@ -26,6 +27,7 @@ import type {
   DataFlowStep,
   ContextSuggestion,
   RelationshipType,
+  MappingConfidence,
 } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
