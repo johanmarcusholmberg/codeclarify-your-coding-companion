@@ -263,8 +263,10 @@ function lineRefLabel(lines?: { start: number; end: number }, confidence?: Mappi
   return lines.start === lines.end ? `Line ${lines.start}` : `Lines ${lines.start}–${lines.end}`;
 }
 
-function unmappedHint(confidence?: MappingConfidence): string | null {
-  if (!confidence) return null;
+function unmappedHint(confidence?: MappingConfidence, mappingType?: MappingType): string | null {
+  if (mappingType === "conceptual") return "This is a conceptual explanation — not tied to one specific location";
+  if (mappingType === "flow") return "This explains how data or execution flows across the code";
+  if (mappingType === "relationship") return "This describes how different parts of the code interact";
   if (confidence === "unmapped") return "This is a high-level explanation of the overall code";
   if (confidence === "broad") return "This explanation refers to several places in the code";
   return null;
@@ -275,6 +277,13 @@ const CONFIDENCE_STYLES: Record<MappingConfidence, string> = {
   likely: "text-sage/80 bg-sage-light/70",
   broad: "text-muted-foreground bg-muted",
   unmapped: "text-muted-foreground/60 bg-muted/50",
+};
+
+const MAPPING_TYPE_LABELS: Record<MappingType, string> = {
+  "code-location": "Code",
+  "conceptual": "Concept",
+  "flow": "Flow",
+  "relationship": "Connection",
 };
 
 // ---------------------------------------------------------------------------
