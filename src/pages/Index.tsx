@@ -8,7 +8,7 @@ import MappedExplanation from "@/components/MappedExplanation";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_CODE } from "@/lib/sampleCode";
 import { generateExplanation, type CodeExplanation, type DepthMode } from "@/lib/explanationEngine";
-import { detectLanguage, trimTrailingBlanks } from "@/lib/languageDetector";
+import { detectLanguage, normalizeCode } from "@/lib/languageDetector";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -288,7 +288,7 @@ const Index = () => {
           <CodeInput
             value={code}
             onChange={(val) => {
-              const cleaned = trimTrailingBlanks(val);
+              const cleaned = normalizeCode(val);
               setCode(cleaned);
               if (explanation) setExplanation(null);
               // Auto-detect language on paste (significant change)

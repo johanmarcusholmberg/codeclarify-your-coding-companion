@@ -185,15 +185,27 @@ const GuidedMode = ({ data, onScrollToLine, onBackToBrowse }: GuidedModeProps) =
             {currentStep + 1}/{steps.length}
           </span>
         </div>
-        {!isFirst && (
-          <button
-            onClick={restart}
-            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span className="hidden sm:inline">Restart</span>
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {onBackToBrowse && (
+            <button
+              onClick={onBackToBrowse}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors"
+            >
+              <BookOpen className="w-3 h-3" />
+              <span className="hidden sm:inline">Back to Browse</span>
+              <span className="sm:hidden">Browse</span>
+            </button>
+          )}
+          {!isFirst && (
+            <button
+              onClick={restart}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span className="hidden sm:inline">Restart</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}

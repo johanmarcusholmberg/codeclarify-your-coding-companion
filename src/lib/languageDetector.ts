@@ -149,8 +149,13 @@ export function detectLanguage(code: string): string | null {
 }
 
 /**
- * Trim trailing empty lines from pasted code while preserving internal spacing.
+ * Normalize pasted code: trim leading and trailing blank lines,
+ * preserve meaningful internal spacing and indentation.
  */
-export function trimTrailingBlanks(code: string): string {
-  return code.replace(/\n\s*$/g, "");
+export function normalizeCode(code: string): string {
+  // Remove leading blank lines
+  let result = code.replace(/^\s*\n/, "");
+  // Remove trailing blank lines
+  result = result.replace(/\n\s*$/g, "");
+  return result;
 }

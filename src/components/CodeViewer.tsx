@@ -44,7 +44,11 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
   const { activeLines, confidence, pinned, highlightFromCode, clearHighlight } = useHighlight();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const lines = useMemo(() => code.split("\n"), [code]);
+  const lines = useMemo(() => {
+    // Normalize: strip leading/trailing blank lines for clean display
+    const trimmed = code.replace(/^\s*\n/, "").replace(/\n\s*$/g, "");
+    return trimmed.split("\n");
+  }, [code]);
 
   useImperativeHandle(ref, () => ({
     scrollToLine(line: number) {
@@ -52,19 +56,20 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
       if (!container) return;
       // Reset horizontal scroll
       container.scrollLeft = 0;
-      // Each row is ~26px (leading-[1.625rem])
-      const rowHeight = 26;
+      // Measure actual row height from DOM if possible
+      const firstRow = container.querySelector("tr");
+      const rowHeight = firstRow ? firstRow.getBoundingClientRect().height : 26;
       const targetY = (line - 1) * rowHeight;
       const containerHeight = container.clientHeight;
-      // Center the target line in the viewport
-      const scrollTo = Math.max(0, targetY - containerHeight / 3);
+      // Place the target line ~25% from top so it's clearly visible
+      const scrollTo = Math.max(0, targetY - containerHeight * 0.25);
       container.scrollTo({ top: scrollTo, left: 0, behavior: "smooth" });
     },
   }));
 
   return (
     <div className="rounded-xl border border-border bg-code-bg overflow-hidden surface-elevated font-mono text-sm leading-[1.625rem]">
-      {/* Header */}
+      {/* Header — not sticky, sits above scrollable area */}
       <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/50 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -79,8 +84,8 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
         </span>
       </div>
 
-      {/* Code lines */}
-      <div ref={scrollContainerRef} className="overflow-x-auto max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
+      {/* Code lines — header is outside scroll area so it never covers code */}
+      <div ref={scrollContainerRef} className="overflow-x-auto max-h-[50vh] sm:max-h-[65vh] overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => {
