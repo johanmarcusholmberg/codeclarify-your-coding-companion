@@ -135,7 +135,7 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
           {/* Two-panel layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5 items-start">
             <div className="lg:sticky lg:top-20">
-              <CodeViewer ref={codeViewerRef} code={code} />
+              <CodeViewer ref={codeViewerRef} code={code} explanationData={data} />
             </div>
 
             <div>
