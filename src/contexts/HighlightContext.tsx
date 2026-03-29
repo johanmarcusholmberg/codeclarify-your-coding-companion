@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { LineRange, ExplanationItemId, MappingConfidence } from "@/lib/explanationEngine";
+import type { LineRange, ExplanationItemId, MappingConfidence, ExplanationItem } from "@/lib/explanationEngine";
 
 interface HighlightState {
   /** Currently highlighted lines in the code viewer */
