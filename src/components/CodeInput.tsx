@@ -17,7 +17,9 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
     // Reset then measure
     el.style.height = "0px";
     const scrollH = el.scrollHeight;
-    const h = Math.max(140, Math.min(scrollH, 420));
+    // Cap at ~50 rows (50 * 1.625rem line-height ≈ 1300px)
+    const maxH = 50 * 26; // 26px per row at 1.625rem
+    const h = Math.max(140, Math.min(scrollH, maxH));
     el.style.height = h + "px";
   }, []);
 
