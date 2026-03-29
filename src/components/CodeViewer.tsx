@@ -87,10 +87,7 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code, explan
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [clickedLine, setClickedLine] = useState<number | null>(null);
 
-  const lines = useMemo(() => {
-    const trimmed = code.replace(/^\s*\n/, "").replace(/\n\s*$/g, "");
-    return trimmed.split("\n");
-  }, [code]);
+  const lines = useMemo(() => code.split("\n"), [code]);
 
   const lineInfoMap = useMemo(
     () => (explanationData ? buildLineInfoMap(explanationData) : new Map<number, LineInfo>()),

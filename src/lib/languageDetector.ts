@@ -153,9 +153,9 @@ export function detectLanguage(code: string): string | null {
  * preserve meaningful internal spacing and indentation.
  */
 export function normalizeCode(code: string): string {
-  // Remove leading blank lines
-  let result = code.replace(/^\s*\n/, "");
-  // Remove trailing blank lines
-  result = result.replace(/\n\s*$/g, "");
+  // Strip ALL leading blank lines
+  let result = code.replace(/^(\s*\n)+/, "");
+  // Strip ALL trailing blank lines (but keep last line's content)
+  result = result.replace(/(\n\s*)+$/, "");
   return result;
 }
