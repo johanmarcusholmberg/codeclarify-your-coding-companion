@@ -13,7 +13,7 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
     const el = textareaRef.current;
     if (el) {
       el.style.height = "auto";
-      el.style.height = Math.max(180, el.scrollHeight) + "px";
+      el.style.height = Math.max(160, Math.min(el.scrollHeight, 400)) + "px";
     }
   }, [value]);
 
@@ -24,10 +24,10 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
       <div className="flex">
         {/* Line numbers */}
         <div
-          className="select-none py-3 sm:py-4 pl-3 sm:pl-4 pr-2 sm:pr-3 text-right font-mono text-xs leading-[1.625rem] text-code-line border-r border-border/50"
+          className="select-none py-3 pl-2.5 sm:pl-4 pr-1.5 sm:pr-3 text-right font-mono text-[11px] sm:text-xs leading-[1.625rem] text-code-line border-r border-border/50"
           aria-hidden="true"
         >
-          {Array.from({ length: Math.max(lineCount, 8) }, (_, i) => (
+          {Array.from({ length: Math.max(lineCount, 6) }, (_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
         </div>
@@ -38,7 +38,7 @@ const CodeInput = ({ value, onChange, placeholder }: CodeInputProps) => {
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           spellCheck={false}
-          className="flex-1 resize-none bg-transparent py-3 sm:py-4 px-3 sm:px-4 font-mono text-[13px] sm:text-sm leading-[1.625rem] text-code-foreground placeholder:text-code-line/50 focus:outline-none min-h-[180px] overflow-hidden"
+          className="flex-1 resize-none bg-transparent py-3 px-2.5 sm:px-4 font-mono text-[12px] sm:text-sm leading-[1.625rem] text-code-foreground placeholder:text-code-line/40 focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto"
         />
       </div>
     </div>

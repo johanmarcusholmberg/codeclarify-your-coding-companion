@@ -171,14 +171,14 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
-      <main className={`container mx-auto px-3 sm:px-4 py-8 sm:py-12 ${showResults ? "max-w-6xl" : "max-w-4xl"} transition-[max-width] duration-500`}>
-        {/* Hero */}
-        <div className="text-center mb-8 sm:mb-10 animate-fade-up">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-3 leading-[1.1]">
+      <main className={`container mx-auto px-3 sm:px-4 py-6 sm:py-12 ${showResults ? "max-w-6xl" : "max-w-4xl"} transition-[max-width] duration-500`}>
+        {/* Hero — compact on mobile */}
+        <div className="text-center mb-6 sm:mb-10 animate-fade-up">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-2 sm:mb-3 leading-[1.15]">
             Understand any code,{" "}
             <span className="text-gradient">clearly</span>
           </h1>
-          <p className="text-muted-foreground text-sm sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed">
+          <p className="text-muted-foreground text-[13px] sm:text-base md:text-lg max-w-xl mx-auto leading-relaxed">
             Paste a snippet and get a plain-language explanation — no jargon,
             no guesswork.
           </p>
