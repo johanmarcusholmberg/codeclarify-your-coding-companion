@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Lightbulb,
   Layers,
@@ -19,6 +19,10 @@ import {
   Workflow,
   Share2,
   MapPin,
+  ThumbsUp,
+  ThumbsDown,
+  MoreHorizontal,
+  FileText,
 } from "lucide-react";
 import type {
   CodeExplanation,
@@ -34,16 +38,16 @@ import { useHighlight } from "@/contexts/HighlightContext";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
-// Section config — only for ExplanationItem[] sections
+// Beginner-friendly section config
 // ---------------------------------------------------------------------------
 
 const ITEM_SECTIONS = [
-  { key: "structure" as const, label: "Structure", icon: <Layers className="w-4 h-4" /> },
-  { key: "functions" as const, label: "Functions", icon: <Code2 className="w-4 h-4" /> },
-  { key: "variables" as const, label: "Variables", icon: <Variable className="w-4 h-4" /> },
-  { key: "logic" as const, label: "Logic", icon: <GitBranch className="w-4 h-4" /> },
-  { key: "syntax" as const, label: "Syntax", icon: <Hash className="w-4 h-4" /> },
-  { key: "suggestions" as const, label: "Suggestions", icon: <MessageSquare className="w-4 h-4" /> },
+  { key: "structure" as const, label: "Important parts", subtitle: "The building blocks of this code", icon: <Layers className="w-4 h-4" /> },
+  { key: "functions" as const, label: "Functions & actions", subtitle: "Reusable actions the code can perform", icon: <Code2 className="w-4 h-4" /> },
+  { key: "variables" as const, label: "Variables & values", subtitle: "Named values the code keeps track of", icon: <Variable className="w-4 h-4" /> },
+  { key: "logic" as const, label: "How the logic works", subtitle: "Decisions and repetitions in the code", icon: <GitBranch className="w-4 h-4" /> },
+  { key: "syntax" as const, label: "Language basics", subtitle: "Programming language rules used here", icon: <Hash className="w-4 h-4" /> },
+  { key: "suggestions" as const, label: "Possible improvements", subtitle: "Ways this code could be even better", icon: <MessageSquare className="w-4 h-4" /> },
 ];
 
 // ---------------------------------------------------------------------------
@@ -83,11 +87,107 @@ const RelationshipBadge = ({ type }: { type: RelationshipType }) => (
 );
 
 // ---------------------------------------------------------------------------
+// Feedback system
+// ---------------------------------------------------------------------------
+
+type FeedbackType = "correct" | "wrong-section" | "too-broad" | "unclear";
+
+const FEEDBACK_OPTIONS: { type: FeedbackType; label: string; icon: React.ReactNode }[] = [
+  { type: "correct", label: "Correct match", icon: <ThumbsUp className="w-3 h-3" /> },
+  { type: "wrong-section", label: "Wrong section", icon: <ThumbsDown className="w-3 h-3" /> },
+  { type: "too-broad", label: "Too broad", icon: <MoreHorizontal className="w-3 h-3" /> },
+  { type: "unclear", label: "Unclear", icon: <Info className="w-3 h-3" /> },
+];
+
+const FEEDBACK_STORAGE_KEY = "codeclarify_feedback";
+
+function loadFeedback(): Record<string, FeedbackType> {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveFeedbackEntry(itemId: string, feedback: FeedbackType | null) {
+  try {
+    const existing = loadFeedback();
+    if (feedback === null) {
+      delete existing[itemId];
+    } else {
+      existing[itemId] = feedback;
+    }
+    localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(existing));
+  } catch { /* quota */ }
+}
+
+const FeedbackControls = ({ itemId }: { itemId: string }) => {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState<FeedbackType | null>(() => {
+    const all = loadFeedback();
+    return all[itemId] ?? null;
+  });
+
+  const handleFeedback = useCallback((type: FeedbackType) => {
+    const newVal = current === type ? null : type;
+    setCurrent(newVal);
+    saveFeedbackEntry(itemId, newVal);
+    if (newVal) {
+      toast.success("Thanks for your feedback!", { duration: 1500 });
+    }
+    setOpen(false);
+  }, [current, itemId]);
+
+  if (current) {
+    const chosen = FEEDBACK_OPTIONS.find((o) => o.type === current);
+    return (
+      <button
+        onClick={() => handleFeedback(current)}
+        className="inline-flex items-center gap-1 text-[10px] font-medium text-sage bg-sage-light px-2 py-0.5 rounded-full hover:bg-sage-light/80 transition-colors"
+        title="Click to remove feedback"
+      >
+        {chosen?.icon}
+        {chosen?.label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground px-1.5 py-0.5 rounded-full hover:bg-muted/60 transition-colors"
+        title="Give feedback on this explanation"
+      >
+        <ThumbsUp className="w-2.5 h-2.5" />
+        <ThumbsDown className="w-2.5 h-2.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full right-0 mb-1 bg-card border border-border rounded-lg shadow-lg p-1 z-10 min-w-[140px] animate-fade-in">
+          {FEEDBACK_OPTIONS.map((opt) => (
+            <button
+              key={opt.type}
+              onClick={() => handleFeedback(opt.type)}
+              className="w-full flex items-center gap-2 text-[11px] text-foreground hover:bg-muted/60 px-2.5 py-1.5 rounded-md transition-colors text-left"
+            >
+              {opt.icon}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Collapsible section
 // ---------------------------------------------------------------------------
 
 interface CollapsibleSectionProps {
   label: string;
+  subtitle?: string;
   icon: React.ReactNode;
   defaultOpen?: boolean;
   children: React.ReactNode;
@@ -97,6 +197,7 @@ interface CollapsibleSectionProps {
 
 const CollapsibleSection = ({
   label,
+  subtitle,
   icon,
   defaultOpen = false,
   children,
@@ -117,10 +218,15 @@ const CollapsibleSection = ({
         <div className="w-7 h-7 rounded-lg bg-sage-light flex items-center justify-center shrink-0 text-sage">
           {icon}
         </div>
-        <span className="font-medium text-sm text-foreground flex-1 flex items-center gap-2">
-          {label}
-          {badge}
-        </span>
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-sm text-foreground flex items-center gap-2">
+            {label}
+            {badge}
+          </span>
+          {subtitle && !open && (
+            <p className="text-[11px] text-muted-foreground/60 mt-0.5 truncate">{subtitle}</p>
+          )}
+        </div>
         <ChevronDown
           className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
             open ? "rotate-180" : ""
@@ -147,9 +253,20 @@ const CollapsibleSection = ({
 function lineRefLabel(lines?: { start: number; end: number }, confidence?: MappingConfidence): string {
   const conf = confidence ?? (lines ? "exact" : "unmapped");
   if (conf === "unmapped" || !lines) return "General explanation";
-  if (conf === "broad") return `Lines ${lines.start}–${lines.end} · approximate`;
-  if (conf === "likely") return lines.start === lines.end ? `Line ${lines.start} · likely` : `Lines ${lines.start}–${lines.end} · likely`;
+  if (conf === "broad") return lines.start === lines.end
+    ? `Around line ${lines.start}`
+    : `Across lines ${lines.start}–${lines.end}`;
+  if (conf === "likely") return lines.start === lines.end
+    ? `Likely line ${lines.start}`
+    : `Likely lines ${lines.start}–${lines.end}`;
   return lines.start === lines.end ? `Line ${lines.start}` : `Lines ${lines.start}–${lines.end}`;
+}
+
+function unmappedHint(confidence?: MappingConfidence): string | null {
+  if (!confidence) return null;
+  if (confidence === "unmapped") return "This is a high-level explanation of the overall code";
+  if (confidence === "broad") return "This explanation refers to several places in the code";
+  return null;
 }
 
 const CONFIDENCE_STYLES: Record<MappingConfidence, string> = {
@@ -160,7 +277,7 @@ const CONFIDENCE_STYLES: Record<MappingConfidence, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Item card — with highlight interaction, line refs, confidence, pin
+// Item card — beginner-friendly with feedback
 // ---------------------------------------------------------------------------
 
 interface ItemCardProps {
@@ -176,15 +293,16 @@ const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) =
   const isActive = activeItemId === itemId;
   const conf: MappingConfidence = confidence ?? (lines ? "exact" : "unmapped");
   const hasLines = !!lines;
+  const hint = unmappedHint(conf);
 
   return (
     <div
-      className={`rounded-lg border px-3.5 sm:px-4 py-3 transition-all duration-200 ${
+      className={`rounded-xl border px-4 py-3.5 transition-all duration-200 ${
         isActive && isPinned
           ? "bg-code-highlight border-sage shadow-sm ring-1 ring-sage/20"
           : isActive
           ? "bg-code-highlight border-sage-medium/60 shadow-sm"
-          : "bg-muted/50 border-border/40 hover:border-border/60"
+          : "bg-card border-border/50 hover:border-border/80 hover:shadow-sm"
       } ${hasLines ? "cursor-pointer" : ""}`}
       data-item-id={itemId}
       role={hasLines ? "button" : undefined}
@@ -192,11 +310,27 @@ const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) =
       onClick={() => hasLines && pinHighlight(itemId, lines, conf)}
       aria-label={hasLines ? `${label} — click to pin highlight` : undefined}
     >
-      <p className="text-[13px] sm:text-sm font-medium text-foreground mb-1">{label}</p>
-      <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{detail}</p>
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
+      {/* Title row */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <p className="text-sm font-semibold text-foreground leading-snug">{label}</p>
+        <FeedbackControls itemId={itemId} />
+      </div>
+
+      {/* Detail text */}
+      <p className="text-[13px] text-muted-foreground leading-relaxed">{detail}</p>
+
+      {/* Hint for broad/unmapped */}
+      {hint && (
+        <p className="text-[11px] text-muted-foreground/50 mt-2 italic flex items-center gap-1">
+          <Info className="w-3 h-3 shrink-0" />
+          {hint}
+        </p>
+      )}
+
+      {/* Footer: line ref + pin status */}
+      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
         <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${CONFIDENCE_STYLES[conf]}`}>
-          {conf === "unmapped" && <Info className="w-2.5 h-2.5" />}
+          {conf === "unmapped" && <FileText className="w-2.5 h-2.5" />}
           {lineRefLabel(lines, confidence)}
         </span>
         {isActive && isPinned && (
@@ -251,17 +385,17 @@ const RelationshipCard = ({ rel, index }: { rel: Relationship; index: number }) 
 
   return (
     <div
-      className="rounded-lg border border-border/40 bg-muted/50 px-3.5 sm:px-4 py-3 transition-all duration-200 hover:bg-code-highlight hover:border-sage-medium/60 cursor-pointer"
+      className="rounded-xl border border-border/50 bg-card px-4 py-3.5 transition-all duration-200 hover:bg-code-highlight hover:border-sage-medium/60 hover:shadow-sm cursor-pointer"
       onMouseEnter={() => hasLines && highlightFromExplanation(itemId, mergedLines)}
       onMouseLeave={clearHighlight}
     >
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="text-[13px] sm:text-sm font-medium text-foreground">{rel.from}</span>
+        <span className="text-[13px] sm:text-sm font-semibold text-foreground">{rel.from}</span>
         <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-        <span className="text-[13px] sm:text-sm font-medium text-foreground">{rel.to}</span>
+        <span className="text-[13px] sm:text-sm font-semibold text-foreground">{rel.to}</span>
         <RelationshipBadge type={rel.type} />
       </div>
-      <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{rel.detail}</p>
+      <p className="text-[13px] text-muted-foreground leading-relaxed">{rel.detail}</p>
     </div>
   );
 };
@@ -286,9 +420,9 @@ const DataFlowCard = ({ step, index }: { step: DataFlowStep; index: number }) =>
         </div>
         <div className="w-px flex-1 bg-sage-medium/30 mt-1" />
       </div>
-      <div className={`rounded-lg border border-border/40 bg-muted/50 px-3.5 sm:px-4 py-3 flex-1 mb-2 transition-all duration-200 ${step.lines ? "cursor-pointer group-hover:bg-code-highlight group-hover:border-sage-medium/60" : ""}`}>
-        <p className="text-[13px] sm:text-sm font-medium text-foreground mb-0.5">{step.label}</p>
-        <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{step.detail}</p>
+      <div className={`rounded-xl border border-border/50 bg-card px-4 py-3.5 flex-1 mb-2 transition-all duration-200 ${step.lines ? "cursor-pointer group-hover:bg-code-highlight group-hover:border-sage-medium/60 group-hover:shadow-sm" : ""}`}>
+        <p className="text-sm font-semibold text-foreground mb-1">{step.label}</p>
+        <p className="text-[13px] text-muted-foreground leading-relaxed">{step.detail}</p>
       </div>
     </div>
   );
@@ -299,9 +433,9 @@ const DataFlowCard = ({ step, index }: { step: DataFlowStep; index: number }) =>
 // ---------------------------------------------------------------------------
 
 const SEVERITY_STYLES = {
-  info: { border: "border-sky-200/60", bg: "bg-sky-50/50", icon: <Info className="w-3.5 h-3.5 text-sky-500" />, label: "Info" },
-  hint: { border: "border-amber-200/60", bg: "bg-amber-50/50", icon: <Lightbulb className="w-3.5 h-3.5 text-amber-500" />, label: "Hint" },
-  warning: { border: "border-rose-200/60", bg: "bg-rose-50/50", icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />, label: "Notice" },
+  info: { border: "border-sky-200/60", bg: "bg-sky-50/50", icon: <Info className="w-3.5 h-3.5 text-sky-500" />, label: "Good to know" },
+  hint: { border: "border-amber-200/60", bg: "bg-amber-50/50", icon: <Lightbulb className="w-3.5 h-3.5 text-amber-500" />, label: "Helpful hint" },
+  warning: { border: "border-rose-200/60", bg: "bg-rose-50/50", icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />, label: "Worth noting" },
 };
 
 const ContextSuggestionCard = ({ suggestion, index }: { suggestion: ContextSuggestion; index: number }) => {
@@ -311,16 +445,16 @@ const ContextSuggestionCard = ({ suggestion, index }: { suggestion: ContextSugge
 
   return (
     <div
-      className={`rounded-lg border ${style.border} ${style.bg} px-3.5 sm:px-4 py-3 transition-all duration-200 ${suggestion.lines ? "cursor-pointer hover:shadow-sm" : ""}`}
+      className={`rounded-xl border ${style.border} ${style.bg} px-4 py-3.5 transition-all duration-200 ${suggestion.lines ? "cursor-pointer hover:shadow-sm" : ""}`}
       onMouseEnter={() => suggestion.lines && highlightFromExplanation(itemId, suggestion.lines)}
       onMouseLeave={clearHighlight}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-1.5">
         {style.icon}
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{style.label}</span>
       </div>
-      <p className="text-[13px] sm:text-sm font-medium text-foreground mb-0.5">{suggestion.label}</p>
-      <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{suggestion.detail}</p>
+      <p className="text-sm font-semibold text-foreground mb-1">{suggestion.label}</p>
+      <p className="text-[13px] text-muted-foreground leading-relaxed">{suggestion.detail}</p>
     </div>
   );
 };
@@ -341,32 +475,29 @@ const LoadingSkeleton = () => {
 
   return (
     <div className="space-y-0 overflow-hidden">
-      {/* Header skeleton */}
       <div className="border-b border-border/60 px-4 sm:px-5 py-3.5 flex items-center gap-3">
         <div className="w-4 h-4 rounded bg-sage/20 animate-pulse" />
         <span className="text-sm font-medium text-muted-foreground">
-          Analyzing your code{dots}
+          Reading and understanding your code{dots}
         </span>
       </div>
 
-      {/* Summary skeleton */}
       <div className="px-4 sm:px-5 py-4 border-b border-border/40">
         <div className="flex items-start gap-3">
           <div className="w-7 h-7 rounded-lg bg-sage-light animate-pulse shrink-0" />
           <div className="flex-1 space-y-2.5">
-            <div className="h-4 w-20 bg-muted rounded-md animate-pulse" />
+            <div className="h-4 w-32 bg-muted rounded-md animate-pulse" />
             <div className="h-3.5 w-full bg-muted/80 rounded-md animate-pulse" style={{ animationDelay: "0.1s" }} />
             <div className="h-3.5 w-4/5 bg-muted/60 rounded-md animate-pulse" style={{ animationDelay: "0.2s" }} />
           </div>
         </div>
       </div>
 
-      {/* Section skeletons */}
       {[
-        { label: "Structure", delay: 0.1 },
-        { label: "Functions", delay: 0.15 },
-        { label: "Variables", delay: 0.2 },
-        { label: "Logic", delay: 0.25 },
+        { label: "Important parts", delay: 0.1 },
+        { label: "Functions & actions", delay: 0.15 },
+        { label: "Variables & values", delay: 0.2 },
+        { label: "How the logic works", delay: 0.25 },
       ].map((s, i) => (
         <div
           key={i}
@@ -375,16 +506,16 @@ const LoadingSkeleton = () => {
         >
           <div className="w-7 h-7 bg-muted rounded-lg animate-pulse shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3.5 bg-muted rounded-md animate-pulse" style={{ width: `${60 + i * 10}px` }} />
+            <div className="h-3.5 bg-muted rounded-md animate-pulse" style={{ width: `${80 + i * 15}px` }} />
+            <div className="h-2.5 bg-muted/40 rounded-md animate-pulse" style={{ width: `${120 + i * 10}px` }} />
           </div>
           <div className="w-4 h-4 bg-muted/60 rounded animate-pulse" />
         </div>
       ))}
 
-      {/* Progress hint */}
       <div className="px-4 sm:px-5 py-3 bg-muted/20">
         <p className="text-[11px] text-muted-foreground/70 text-center">
-          This usually takes a few seconds
+          This usually takes a few seconds — we're analyzing structure, logic, and relationships
         </p>
       </div>
     </div>
@@ -415,6 +546,21 @@ const EmptyState = () => (
 );
 
 // ---------------------------------------------------------------------------
+// Snippet size notice
+// ---------------------------------------------------------------------------
+
+function snippetNotice(data: CodeExplanation): string | null {
+  const totalItems = data.structure.length + data.functions.length + data.variables.length + data.logic.length + data.syntax.length;
+  if (totalItems <= 1 && !data.relationships.length) {
+    return "This is a short snippet — the explanation covers the essentials. Try pasting a larger piece of code for a more detailed breakdown.";
+  }
+  if (totalItems > 20) {
+    return "This is a longer piece of code. Each section below focuses on a specific part — take your time exploring them.";
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Main panel
 // ---------------------------------------------------------------------------
 
@@ -429,7 +575,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
   const buildCopyText = () => {
     if (!data) return "";
     const lines: string[] = [];
-    lines.push("## Summary\n" + data.summary + "\n");
+    lines.push("## What this code does\n" + data.summary + "\n");
     ITEM_SECTIONS.forEach((s) => {
       const items = data[s.key];
       if (items.length) {
@@ -439,19 +585,19 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
       }
     });
     if (data.relationships.length) {
-      lines.push("## Connections");
+      lines.push("## How parts connect");
       data.relationships.forEach((r) => lines.push(`• ${r.from} → ${r.to} (${RELATIONSHIP_LABELS[r.type]}): ${r.detail}`));
       lines.push("");
     }
     if (data.dataFlow.length) {
-      lines.push("## Data Flow");
+      lines.push("## Step by step");
       data.dataFlow.forEach((s, i) => lines.push(`${i + 1}. ${s.label}: ${s.detail}`));
       lines.push("");
     }
     if (data.relationshipSummary) {
-      lines.push("## How It All Fits Together\n" + data.relationshipSummary + "\n");
+      lines.push("## The big picture\n" + data.relationshipSummary + "\n");
     }
-    lines.push("## Beginner Mode\n" + data.beginnerMode);
+    lines.push("## Simple explanation\n" + data.beginnerMode);
     return lines.join("\n");
   };
 
@@ -490,6 +636,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
     );
   }
 
+  const notice = snippetNotice(data);
   let sectionIndex = 0;
 
   return (
@@ -498,7 +645,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
       <div className="border-b border-border/60 px-4 sm:px-5 py-3.5 flex items-center justify-between gap-2">
         <h2 className="font-semibold text-sm text-foreground flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-sage" />
-          Explanation
+          Your code, explained
         </h2>
         <div className="flex items-center gap-1">
           <button
@@ -529,13 +676,23 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
             <Lightbulb className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-medium text-sm text-foreground mb-1">Summary</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-1.5">What this code does</h3>
             <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{data.summary}</p>
           </div>
         </div>
       </div>
 
-      {/* Existing item sections */}
+      {/* Snippet size notice */}
+      {notice && (
+        <div className="px-4 sm:px-5 py-2.5 border-b border-border/30 bg-muted/20 animate-fade-up">
+          <p className="text-[11px] text-muted-foreground/70 flex items-start gap-1.5 leading-relaxed">
+            <Info className="w-3 h-3 shrink-0 mt-0.5" />
+            {notice}
+          </p>
+        </div>
+      )}
+
+      {/* Item sections with beginner-friendly labels */}
       {ITEM_SECTIONS.map((section) => {
         const items = data[section.key];
         if (!items.length) return null;
@@ -544,6 +701,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
           <CollapsibleSection
             key={section.key}
             label={section.label}
+            subtitle={section.subtitle}
             icon={section.icon}
             defaultOpen={sectionIndex <= 2}
             animDelay={0.06 * sectionIndex}
@@ -560,10 +718,11 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
         );
       })}
 
-      {/* Connections / Relationships */}
+      {/* Connections */}
       {data.relationships.length > 0 && (
         <CollapsibleSection
-          label="Connections"
+          label="How parts connect"
+          subtitle="How different pieces of the code work together"
           icon={<Link2 className="w-4 h-4" />}
           defaultOpen={true}
           animDelay={0.06 * (++sectionIndex)}
@@ -582,7 +741,8 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
       {/* Data Flow */}
       {data.dataFlow.length > 0 && (
         <CollapsibleSection
-          label="Data Flow"
+          label="Step by step"
+          subtitle="How information flows through the code"
           icon={<Workflow className="w-4 h-4" />}
           defaultOpen={false}
           animDelay={0.06 * (++sectionIndex)}
@@ -595,24 +755,26 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
         </CollapsibleSection>
       )}
 
-      {/* How It All Fits Together */}
+      {/* Big picture */}
       {data.relationshipSummary && (
         <CollapsibleSection
-          label="How It All Fits Together"
+          label="The big picture"
+          subtitle="How everything fits together"
           icon={<Layers className="w-4 h-4" />}
           defaultOpen={false}
           animDelay={0.06 * (++sectionIndex)}
         >
-          <div className="rounded-lg bg-accent/50 border border-accent-foreground/10 px-3.5 sm:px-4 py-3">
+          <div className="rounded-xl bg-accent/50 border border-accent-foreground/10 px-4 py-3.5">
             <p className="text-[13px] sm:text-sm text-foreground leading-relaxed">{data.relationshipSummary}</p>
           </div>
         </CollapsibleSection>
       )}
 
-      {/* Context Suggestions */}
+      {/* Context Insights */}
       {data.contextSuggestions.length > 0 && (
         <CollapsibleSection
-          label="Context Insights"
+          label="Things to notice"
+          subtitle="Patterns and observations worth knowing"
           icon={<AlertTriangle className="w-4 h-4" />}
           defaultOpen={false}
           animDelay={0.06 * (++sectionIndex)}
@@ -628,14 +790,15 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
         </CollapsibleSection>
       )}
 
-      {/* Beginner mode */}
+      {/* Simple explanation */}
       <CollapsibleSection
-        label="Beginner Mode"
+        label="Simple explanation"
+        subtitle="A beginner-friendly way to think about this code"
         icon={<GraduationCap className="w-4 h-4" />}
         defaultOpen={false}
         animDelay={0.06 * (++sectionIndex)}
       >
-        <div className="rounded-lg bg-sage-light/60 border border-sage-medium/30 px-3.5 sm:px-4 py-3">
+        <div className="rounded-xl bg-sage-light/60 border border-sage-medium/30 px-4 py-3.5">
           <p className="text-[13px] sm:text-sm text-foreground leading-relaxed">{data.beginnerMode}</p>
         </div>
       </CollapsibleSection>
@@ -646,7 +809,7 @@ const ExplanationPanel = ({ data, isLoading }: ExplanationPanelProps) => {
           <Info className="w-3 h-3 shrink-0 mt-0.5" />
           <span>
             Explanations are AI-generated for learning purposes and may not always be perfectly accurate.
-            Always review and verify important code yourself.
+            Always review and verify important code yourself. Your feedback helps us improve!
           </span>
         </p>
       </div>
