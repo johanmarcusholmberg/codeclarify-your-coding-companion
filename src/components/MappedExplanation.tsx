@@ -1,9 +1,9 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { Info, BookOpen, Play } from "lucide-react";
 import CodeViewer, { type CodeViewerHandle } from "@/components/CodeViewer";
 import ExplanationPanel from "@/components/ExplanationPanel";
 import GuidedMode from "@/components/GuidedMode";
-import { HighlightProvider } from "@/contexts/HighlightContext";
+import { HighlightProvider, useHighlight } from "@/contexts/HighlightContext";
 import type { CodeExplanation, ExplanationItemId, LineRange } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 
