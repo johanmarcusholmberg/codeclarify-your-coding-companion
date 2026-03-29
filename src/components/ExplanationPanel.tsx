@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Workflow,
   Share2,
+  MapPin,
 } from "lucide-react";
 import type {
   CodeExplanation,
@@ -26,6 +27,7 @@ import type {
   DataFlowStep,
   ContextSuggestion,
   RelationshipType,
+  MappingConfidence,
 } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
@@ -139,45 +141,76 @@ const CollapsibleSection = ({
 };
 
 // ---------------------------------------------------------------------------
-// Item card — with highlight interaction
+// Line reference label
+// ---------------------------------------------------------------------------
+
+function lineRefLabel(lines?: { start: number; end: number }, confidence?: MappingConfidence): string {
+  const conf = confidence ?? (lines ? "exact" : "unmapped");
+  if (conf === "unmapped" || !lines) return "General explanation";
+  if (conf === "broad") return `Lines ${lines.start}–${lines.end} · approximate`;
+  if (conf === "likely") return lines.start === lines.end ? `Line ${lines.start} · likely` : `Lines ${lines.start}–${lines.end} · likely`;
+  return lines.start === lines.end ? `Line ${lines.start}` : `Lines ${lines.start}–${lines.end}`;
+}
+
+const CONFIDENCE_STYLES: Record<MappingConfidence, string> = {
+  exact: "text-sage bg-sage-light",
+  likely: "text-sage/80 bg-sage-light/70",
+  broad: "text-muted-foreground bg-muted",
+  unmapped: "text-muted-foreground/60 bg-muted/50",
+};
+
+// ---------------------------------------------------------------------------
+// Item card — with highlight interaction, line refs, confidence, pin
 // ---------------------------------------------------------------------------
 
 interface ItemCardProps {
   label: string;
   detail: string;
   itemId: ExplanationItemId;
-  hasLines: boolean;
+  lines?: { start: number; end: number };
+  confidence?: MappingConfidence;
 }
 
-const ItemCard = ({ label, detail, itemId, hasLines }: ItemCardProps) => {
-  const { activeItemId } = useHighlight();
+const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) => {
+  const { activeItemId, pinned: isPinned, pinHighlight } = useHighlight();
   const isActive = activeItemId === itemId;
+  const conf: MappingConfidence = confidence ?? (lines ? "exact" : "unmapped");
+  const hasLines = !!lines;
 
   return (
     <div
       className={`rounded-lg border px-3.5 sm:px-4 py-3 transition-all duration-200 ${
-        isActive
+        isActive && isPinned
+          ? "bg-code-highlight border-sage shadow-sm ring-1 ring-sage/20"
+          : isActive
           ? "bg-code-highlight border-sage-medium/60 shadow-sm"
           : "bg-muted/50 border-border/40 hover:border-border/60"
       } ${hasLines ? "cursor-pointer" : ""}`}
       data-item-id={itemId}
       role={hasLines ? "button" : undefined}
       tabIndex={hasLines ? 0 : undefined}
-      aria-label={hasLines ? `${label} — hover to highlight related code` : undefined}
+      onClick={() => hasLines && pinHighlight(itemId, lines, conf)}
+      aria-label={hasLines ? `${label} — click to pin highlight` : undefined}
     >
       <p className="text-[13px] sm:text-sm font-medium text-foreground mb-1">{label}</p>
       <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed">{detail}</p>
-      {hasLines && (
-        <span className="inline-block mt-1.5 text-[11px] text-sage font-medium opacity-60">
-          ↔ hover to see in code
+      <div className="flex items-center gap-2 mt-2 flex-wrap">
+        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${CONFIDENCE_STYLES[conf]}`}>
+          {conf === "unmapped" && <Info className="w-2.5 h-2.5" />}
+          {lineRefLabel(lines, confidence)}
         </span>
-      )}
+        {isActive && isPinned && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-sage">
+            <MapPin className="w-2.5 h-2.5" /> Pinned
+          </span>
+        )}
+      </div>
     </div>
   );
 };
 
 interface ItemCardWrapperProps {
-  item: { label: string; detail: string; lines?: { start: number; end: number } };
+  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence };
   sectionKey: string;
   itemIndex: number;
 }
@@ -185,17 +218,19 @@ interface ItemCardWrapperProps {
 const ItemCardWrapper = ({ item, sectionKey, itemIndex }: ItemCardWrapperProps) => {
   const { highlightFromExplanation, clearHighlight } = useHighlight();
   const itemId = makeItemId(sectionKey, itemIndex);
+  const conf: MappingConfidence = item.confidence ?? (item.lines ? "exact" : "unmapped");
 
   return (
     <div
-      onMouseEnter={() => highlightFromExplanation(itemId, item.lines)}
+      onMouseEnter={() => highlightFromExplanation(itemId, item.lines, conf)}
       onMouseLeave={clearHighlight}
     >
       <ItemCard
         label={item.label}
         detail={item.detail}
         itemId={itemId}
-        hasLines={!!item.lines}
+        lines={item.lines}
+        confidence={item.confidence}
       />
     </div>
   );

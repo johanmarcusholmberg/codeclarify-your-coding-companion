@@ -14,12 +14,12 @@ Schema:
 {
   "summary": "string — plain-language summary of the full code",
   "summaryLines": { "start": number, "end": number },
-  "structure": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
-  "functions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
-  "variables": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
-  "logic": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
-  "syntax": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
-  "suggestions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null }],
+  "structure": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
+  "functions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
+  "variables": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
+  "logic": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
+  "syntax": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
+  "suggestions": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } | null, "confidence": "exact" | "likely" | "broad" | "unmapped" }],
   "beginnerMode": "string — a simple metaphor-based explanation for total beginners",
   "relationships": [{ "from": "string", "to": "string", "type": "uses|called-by|depends-on|returns|updates|filters|loops-through|defines|passes-to", "detail": "string", "fromLines": { "start": number, "end": number }, "toLines": { "start": number, "end": number } }],
   "dataFlow": [{ "label": "string", "detail": "string", "lines": { "start": number, "end": number } }],
@@ -30,6 +30,8 @@ Schema:
 Rules:
 - Line numbers are 1-indexed and refer to the pasted snippet.
 - "lines" fields map explanation items to code ranges. Always include them when possible.
+- "confidence" indicates how precisely the explanation maps: "exact" for precise line matches, "likely" for high-confidence but not character-precise, "broad" for explanations spanning large or multiple sections, "unmapped" when no specific lines apply.
+- Default to "exact" for most items. Use "likely" or "broad" honestly when the explanation covers general concepts or multiple areas.
 - summaryLines should cover the entire snippet.
 - All arrays can be empty if the section doesn't apply.
 - Keep explanations friendly and non-judgmental.

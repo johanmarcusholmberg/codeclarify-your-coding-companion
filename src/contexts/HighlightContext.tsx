@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import type { LineRange, ExplanationItemId } from "@/lib/explanationEngine";
+import type { LineRange, ExplanationItemId, MappingConfidence } from "@/lib/explanationEngine";
 
 interface HighlightState {
   /** Currently highlighted lines in the code viewer */
@@ -8,15 +8,25 @@ interface HighlightState {
   activeItemId: ExplanationItemId | null;
   /** Which side initiated the highlight: "code" or "explanation" */
   source: "code" | "explanation" | null;
+  /** Mapping confidence for the current highlight */
+  confidence: MappingConfidence;
+  /** Whether the current highlight is pinned (click vs hover) */
+  pinned: boolean;
 }
 
 interface HighlightContextValue extends HighlightState {
   highlightFromExplanation: (
     itemId: ExplanationItemId,
-    lines: LineRange | undefined
+    lines: LineRange | undefined,
+    confidence?: MappingConfidence
   ) => void;
   highlightFromCode: (line: number) => void;
   clearHighlight: () => void;
+  pinHighlight: (
+    itemId: ExplanationItemId,
+    lines: LineRange | undefined,
+    confidence?: MappingConfidence
+  ) => void;
 }
 
 const HighlightContext = createContext<HighlightContextValue | null>(null);
@@ -34,22 +44,32 @@ interface HighlightProviderProps {
   lineToItems?: Map<number, ExplanationItemId[]>;
 }
 
+const INITIAL: HighlightState = {
+  activeLines: null,
+  activeItemId: null,
+  source: null,
+  confidence: "exact",
+  pinned: false,
+};
+
 export function HighlightProvider({
   children,
   lineToItems,
 }: HighlightProviderProps) {
-  const [state, setState] = useState<HighlightState>({
-    activeLines: null,
-    activeItemId: null,
-    source: null,
-  });
+  const [state, setState] = useState<HighlightState>(INITIAL);
 
   const highlightFromExplanation = useCallback(
-    (itemId: ExplanationItemId, lines: LineRange | undefined) => {
-      setState({
-        activeLines: lines ?? null,
-        activeItemId: itemId,
-        source: "explanation",
+    (itemId: ExplanationItemId, lines: LineRange | undefined, confidence: MappingConfidence = "exact") => {
+      setState((prev) => {
+        // Don't override a pinned state with hover
+        if (prev.pinned) return prev;
+        return {
+          activeLines: lines ?? null,
+          activeItemId: itemId,
+          source: "explanation",
+          confidence: lines ? confidence : "unmapped",
+          pinned: false,
+        };
       });
     },
     []
@@ -57,24 +77,50 @@ export function HighlightProvider({
 
   const highlightFromCode = useCallback(
     (line: number) => {
-      if (!lineToItems) {
-        setState({ activeLines: { start: line, end: line }, activeItemId: null, source: "code" });
-        return;
-      }
-      const ids = lineToItems.get(line);
-      const firstId = ids?.[0] ?? null;
-      setState({
-        activeLines: { start: line, end: line },
-        activeItemId: firstId,
-        source: "code",
+      setState((prev) => {
+        if (prev.pinned) return prev;
+        if (!lineToItems) {
+          return { activeLines: { start: line, end: line }, activeItemId: null, source: "code", confidence: "exact", pinned: false };
+        }
+        const ids = lineToItems.get(line);
+        const firstId = ids?.[0] ?? null;
+        return {
+          activeLines: { start: line, end: line },
+          activeItemId: firstId,
+          source: "code",
+          confidence: "exact",
+          pinned: false,
+        };
       });
     },
     [lineToItems]
   );
 
   const clearHighlight = useCallback(() => {
-    setState({ activeLines: null, activeItemId: null, source: null });
+    setState((prev) => {
+      if (prev.pinned) return prev;
+      return INITIAL;
+    });
   }, []);
+
+  const pinHighlight = useCallback(
+    (itemId: ExplanationItemId, lines: LineRange | undefined, confidence: MappingConfidence = "exact") => {
+      setState((prev) => {
+        // Toggle off if same item is already pinned
+        if (prev.pinned && prev.activeItemId === itemId) {
+          return INITIAL;
+        }
+        return {
+          activeLines: lines ?? null,
+          activeItemId: itemId,
+          source: "explanation",
+          confidence: lines ? confidence : "unmapped",
+          pinned: true,
+        };
+      });
+    },
+    []
+  );
 
   return (
     <HighlightContext.Provider
@@ -83,6 +129,7 @@ export function HighlightProvider({
         highlightFromExplanation,
         highlightFromCode,
         clearHighlight,
+        pinHighlight,
       }}
     >
       {children}

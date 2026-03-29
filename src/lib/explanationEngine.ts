@@ -6,11 +6,16 @@ export interface LineRange {
   end: number;
 }
 
+/** How confidently the explanation maps to a specific code location */
+export type MappingConfidence = "exact" | "likely" | "broad" | "unmapped";
+
 export interface ExplanationItem {
   label: string;
   detail: string;
   /** Lines in the original code this item relates to */
   lines?: LineRange;
+  /** How confident the mapping is — defaults to "exact" when lines exist, "unmapped" when not */
+  confidence?: MappingConfidence;
 }
 
 /** Relationship tag types for visual badges */
