@@ -298,9 +298,25 @@ interface ItemCardProps {
   confidence?: MappingConfidence;
   mappingType?: MappingType;
   reasoning?: string;
+  category?: string;
+  priority?: string;
 }
 
-const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reasoning }: ItemCardProps) => {
+const CATEGORY_LABELS: Record<string, string> = {
+  readability: "Readability",
+  maintainability: "Maintainability",
+  performance: "Performance",
+  correctness: "Correctness",
+  "best-practice": "Best practice",
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  high: "bg-destructive/10 text-destructive border-destructive/20",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  low: "bg-muted text-muted-foreground border-border",
+};
+
+const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reasoning, category, priority }: ItemCardProps) => {
   const { activeItemId, pinned: isPinned, pinHighlight } = useHighlight();
   const isActive = activeItemId === itemId;
   const conf: MappingConfidence = confidence ?? (lines ? "exact" : "unmapped");
@@ -325,7 +341,19 @@ const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reaso
     >
       {/* Title row */}
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <p className="text-sm font-semibold text-foreground leading-snug">{label}</p>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <p className="text-sm font-semibold text-foreground leading-snug">{label}</p>
+          {category && CATEGORY_LABELS[category] && (
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              {CATEGORY_LABELS[category]}
+            </span>
+          )}
+          {priority && PRIORITY_STYLES[priority] && (
+            <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${PRIORITY_STYLES[priority]}`}>
+              {priority}
+            </span>
+          )}
+        </div>
         <FeedbackControls itemId={itemId} />
       </div>
 
@@ -369,7 +397,7 @@ const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reaso
 };
 
 interface ItemCardWrapperProps {
-  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence; mappingType?: MappingType; reasoning?: string };
+  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence; mappingType?: MappingType; reasoning?: string; category?: string; priority?: string };
   sectionKey: string;
   itemIndex: number;
 }
@@ -392,6 +420,8 @@ const ItemCardWrapper = ({ item, sectionKey, itemIndex }: ItemCardWrapperProps) 
         confidence={item.confidence}
         mappingType={item.mappingType}
         reasoning={item.reasoning}
+        category={item.category}
+        priority={item.priority}
       />
     </div>
   );
