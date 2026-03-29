@@ -32,6 +32,7 @@ import type {
   ContextSuggestion,
   RelationshipType,
   MappingConfidence,
+  MappingType,
 } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
@@ -262,8 +263,10 @@ function lineRefLabel(lines?: { start: number; end: number }, confidence?: Mappi
   return lines.start === lines.end ? `Line ${lines.start}` : `Lines ${lines.start}–${lines.end}`;
 }
 
-function unmappedHint(confidence?: MappingConfidence): string | null {
-  if (!confidence) return null;
+function unmappedHint(confidence?: MappingConfidence, mappingType?: MappingType): string | null {
+  if (mappingType === "conceptual") return "This is a conceptual explanation — not tied to one specific location";
+  if (mappingType === "flow") return "This explains how data or execution flows across the code";
+  if (mappingType === "relationship") return "This describes how different parts of the code interact";
   if (confidence === "unmapped") return "This is a high-level explanation of the overall code";
   if (confidence === "broad") return "This explanation refers to several places in the code";
   return null;
@@ -276,6 +279,13 @@ const CONFIDENCE_STYLES: Record<MappingConfidence, string> = {
   unmapped: "text-muted-foreground/60 bg-muted/50",
 };
 
+const MAPPING_TYPE_LABELS: Record<MappingType, string> = {
+  "code-location": "Code",
+  "conceptual": "Concept",
+  "flow": "Flow",
+  "relationship": "Connection",
+};
+
 // ---------------------------------------------------------------------------
 // Item card — beginner-friendly with feedback
 // ---------------------------------------------------------------------------
@@ -286,14 +296,17 @@ interface ItemCardProps {
   itemId: ExplanationItemId;
   lines?: { start: number; end: number };
   confidence?: MappingConfidence;
+  mappingType?: MappingType;
+  reasoning?: string;
 }
 
-const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) => {
+const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reasoning }: ItemCardProps) => {
   const { activeItemId, pinned: isPinned, pinHighlight } = useHighlight();
   const isActive = activeItemId === itemId;
   const conf: MappingConfidence = confidence ?? (lines ? "exact" : "unmapped");
+  const mType: MappingType = mappingType ?? (lines ? "code-location" : "conceptual");
   const hasLines = !!lines;
-  const hint = unmappedHint(conf);
+  const hint = unmappedHint(conf, mType);
 
   return (
     <div
@@ -319,16 +332,28 @@ const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) =
       {/* Detail text */}
       <p className="text-[13px] text-muted-foreground leading-relaxed">{detail}</p>
 
-      {/* Hint for broad/unmapped */}
+      {/* Reasoning (why this mapping) */}
+      {reasoning && (
+        <p className="text-[11px] text-muted-foreground/40 mt-1.5 italic">
+          ↳ {reasoning}
+        </p>
+      )}
+
+      {/* Hint for broad/unmapped/conceptual */}
       {hint && (
-        <p className="text-[11px] text-muted-foreground/50 mt-2 italic flex items-center gap-1">
+        <p className="text-[11px] text-muted-foreground/50 mt-1.5 italic flex items-center gap-1">
           <Info className="w-3 h-3 shrink-0" />
           {hint}
         </p>
       )}
 
-      {/* Footer: line ref + pin status */}
+      {/* Footer: mapping type + line ref + pin status */}
       <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+        {mType !== "code-location" && (
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+            {MAPPING_TYPE_LABELS[mType]}
+          </span>
+        )}
         <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${CONFIDENCE_STYLES[conf]}`}>
           {conf === "unmapped" && <FileText className="w-2.5 h-2.5" />}
           {lineRefLabel(lines, confidence)}
@@ -344,7 +369,7 @@ const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) =
 };
 
 interface ItemCardWrapperProps {
-  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence };
+  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence; mappingType?: MappingType; reasoning?: string };
   sectionKey: string;
   itemIndex: number;
 }
@@ -365,6 +390,8 @@ const ItemCardWrapper = ({ item, sectionKey, itemIndex }: ItemCardWrapperProps) 
         itemId={itemId}
         lines={item.lines}
         confidence={item.confidence}
+        mappingType={item.mappingType}
+        reasoning={item.reasoning}
       />
     </div>
   );

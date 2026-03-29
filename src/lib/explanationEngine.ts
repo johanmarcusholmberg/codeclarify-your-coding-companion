@@ -9,6 +9,9 @@ export interface LineRange {
 /** How confidently the explanation maps to a specific code location */
 export type MappingConfidence = "exact" | "likely" | "broad" | "unmapped";
 
+/** What kind of explanation this item represents */
+export type MappingType = "code-location" | "conceptual" | "flow" | "relationship";
+
 export interface ExplanationItem {
   label: string;
   detail: string;
@@ -16,6 +19,10 @@ export interface ExplanationItem {
   lines?: LineRange;
   /** How confident the mapping is — defaults to "exact" when lines exist, "unmapped" when not */
   confidence?: MappingConfidence;
+  /** What kind of explanation: code-location (pinpointed), conceptual (high-level), flow, relationship */
+  mappingType?: MappingType;
+  /** Optional short reasoning for why this mapping was chosen */
+  reasoning?: string;
 }
 
 /** Relationship tag types for visual badges */
@@ -38,6 +45,8 @@ export interface Relationship {
   detail: string;
   fromLines?: LineRange;
   toLines?: LineRange;
+  /** Optional reasoning */
+  reasoning?: string;
 }
 
 /** A step in the data flow through the code */
@@ -53,6 +62,8 @@ export interface ContextSuggestion {
   detail: string;
   severity: "info" | "hint" | "warning";
   lines?: LineRange;
+  confidence?: MappingConfidence;
+  mappingType?: MappingType;
 }
 
 export interface CodeExplanation {

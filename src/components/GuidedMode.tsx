@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Circle,
 } from "lucide-react";
-import type { CodeExplanation, LineRange, MappingConfidence } from "@/lib/explanationEngine";
+import type { CodeExplanation, LineRange, MappingConfidence, MappingType } from "@/lib/explanationEngine";
 import { makeItemId } from "@/lib/explanationEngine";
 import { useHighlight } from "@/contexts/HighlightContext";
 
