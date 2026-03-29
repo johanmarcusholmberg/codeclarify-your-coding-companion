@@ -369,7 +369,7 @@ const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reaso
 };
 
 interface ItemCardWrapperProps {
-  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence };
+  item: { label: string; detail: string; lines?: { start: number; end: number }; confidence?: MappingConfidence; mappingType?: MappingType; reasoning?: string };
   sectionKey: string;
   itemIndex: number;
 }
@@ -390,6 +390,8 @@ const ItemCardWrapper = ({ item, sectionKey, itemIndex }: ItemCardWrapperProps) 
         itemId={itemId}
         lines={item.lines}
         confidence={item.confidence}
+        mappingType={item.mappingType}
+        reasoning={item.reasoning}
       />
     </div>
   );
