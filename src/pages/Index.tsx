@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Play, Sparkles, History, X, Clock, Trash2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import CodeInput from "@/components/CodeInput";
@@ -8,6 +8,7 @@ import MappedExplanation from "@/components/MappedExplanation";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_CODE } from "@/lib/sampleCode";
 import { generateExplanation, type CodeExplanation, type DepthMode } from "@/lib/explanationEngine";
+import { detectLanguage, trimTrailingBlanks } from "@/lib/languageDetector";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
