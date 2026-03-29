@@ -288,7 +288,7 @@ const Index = () => {
           <CodeInput
             value={code}
             onChange={(val) => {
-              const cleaned = trimTrailingBlanks(val);
+              const cleaned = normalizeCode(val);
               setCode(cleaned);
               if (explanation) setExplanation(null);
               // Auto-detect language on paste (significant change)

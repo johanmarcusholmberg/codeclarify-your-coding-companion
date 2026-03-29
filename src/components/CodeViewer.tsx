@@ -56,12 +56,13 @@ const CodeViewer = forwardRef<CodeViewerHandle, CodeViewerProps>(({ code }, ref)
       if (!container) return;
       // Reset horizontal scroll
       container.scrollLeft = 0;
-      // Each row is ~26px (leading-[1.625rem])
-      const rowHeight = 26;
+      // Measure actual row height from DOM if possible
+      const firstRow = container.querySelector("tr");
+      const rowHeight = firstRow ? firstRow.getBoundingClientRect().height : 26;
       const targetY = (line - 1) * rowHeight;
       const containerHeight = container.clientHeight;
-      // Center the target line in the viewport
-      const scrollTo = Math.max(0, targetY - containerHeight / 3);
+      // Place the target line ~25% from top so it's clearly visible
+      const scrollTo = Math.max(0, targetY - containerHeight * 0.25);
       container.scrollTo({ top: scrollTo, left: 0, behavior: "smooth" });
     },
   }));
