@@ -63,15 +63,23 @@ const MappedExplanation = ({ code, data, isLoading }: MappedExplanationProps) =>
   return (
     <HighlightProvider lineToItems={lineToItems}>
       {hasResults ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start animate-fade-up">
-          {/* Left: Code viewer (sticky on desktop) */}
-          <div className="lg:sticky lg:top-20">
-            <CodeViewer code={code} />
+        <div className="space-y-3 animate-fade-up">
+          {/* Helper guidance */}
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
+            <Info className="w-3 h-3" />
+            <span>Hover or click explanation cards to see how they connect to the code</span>
           </div>
 
-          {/* Right: Explanation panel */}
-          <div>
-            <ExplanationPanel data={data} isLoading={isLoading} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+            {/* Left: Code viewer (sticky on desktop) */}
+            <div className="lg:sticky lg:top-20">
+              <CodeViewer code={code} />
+            </div>
+
+            {/* Right: Explanation panel */}
+            <div>
+              <ExplanationPanel data={data} isLoading={isLoading} />
+            </div>
           </div>
         </div>
       ) : (
