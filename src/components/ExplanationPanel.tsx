@@ -296,14 +296,17 @@ interface ItemCardProps {
   itemId: ExplanationItemId;
   lines?: { start: number; end: number };
   confidence?: MappingConfidence;
+  mappingType?: MappingType;
+  reasoning?: string;
 }
 
-const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) => {
+const ItemCard = ({ label, detail, itemId, lines, confidence, mappingType, reasoning }: ItemCardProps) => {
   const { activeItemId, pinned: isPinned, pinHighlight } = useHighlight();
   const isActive = activeItemId === itemId;
   const conf: MappingConfidence = confidence ?? (lines ? "exact" : "unmapped");
+  const mType: MappingType = mappingType ?? (lines ? "code-location" : "conceptual");
   const hasLines = !!lines;
-  const hint = unmappedHint(conf);
+  const hint = unmappedHint(conf, mType);
 
   return (
     <div
@@ -329,16 +332,28 @@ const ItemCard = ({ label, detail, itemId, lines, confidence }: ItemCardProps) =
       {/* Detail text */}
       <p className="text-[13px] text-muted-foreground leading-relaxed">{detail}</p>
 
-      {/* Hint for broad/unmapped */}
+      {/* Reasoning (why this mapping) */}
+      {reasoning && (
+        <p className="text-[11px] text-muted-foreground/40 mt-1.5 italic">
+          ↳ {reasoning}
+        </p>
+      )}
+
+      {/* Hint for broad/unmapped/conceptual */}
       {hint && (
-        <p className="text-[11px] text-muted-foreground/50 mt-2 italic flex items-center gap-1">
+        <p className="text-[11px] text-muted-foreground/50 mt-1.5 italic flex items-center gap-1">
           <Info className="w-3 h-3 shrink-0" />
           {hint}
         </p>
       )}
 
-      {/* Footer: line ref + pin status */}
+      {/* Footer: mapping type + line ref + pin status */}
       <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+        {mType !== "code-location" && (
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+            {MAPPING_TYPE_LABELS[mType]}
+          </span>
+        )}
         <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${CONFIDENCE_STYLES[conf]}`}>
           {conf === "unmapped" && <FileText className="w-2.5 h-2.5" />}
           {lineRefLabel(lines, confidence)}
